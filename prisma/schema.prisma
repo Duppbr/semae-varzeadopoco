@@ -1,0 +1,119 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Loja {
+  id        Int           @id @default(autoincrement())
+  nome      String
+  produtos  ProdutoLoja[]
+  tokens    TokenAcesso[]
+  usuarios  Usuario[]
+}
+
+model Produto {
+  id          Int           @id @default(autoincrement())
+  sku         String        @unique
+  nome        String
+  marca       String
+  categoria   String?
+  amperagem   String?
+  tipo        String?
+  cca         Int?
+  garantia    String?
+  lojas       ProdutoLoja[]
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+}
+
+model ProdutoLoja {
+  id                Int      @id @default(autoincrement())
+  produtoId         Int
+  lojaId            Int
+  produto           Produto  @relation(fields: [produtoId], references: [id])
+  loja              Loja     @relation(fields: [lojaId], references: [id])
+  precoCartao       Float?
+  precoCartao3x     Float?
+  precoAvista       Float?
+  precoAvistaMinimo Float?
+  precoSugerido     Float?
+  quantidadeEstoque Int      @default(0)
+  ativo             Boolean  @default(true)
+  prioridade        String   @default("verde")
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@unique([produtoId, lojaId])
+}
+
+model Usuario {
+  id            Int      @id @default(autoincrement())
+  identificador String   @unique
+  senhaHash     String
+  nome          String
+  role          String   @default("funcionario")
+  ativo         Boolean  @default(true)
+  lojaId        Int
+  loja          Loja     @relation(fields: [lojaId], references: [id])
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+model TokenAcesso {
+  id        Int      @id @default(autoincrement())
+  token     String   @unique
+  lojaId    Int
+  loja      Loja     @relation(fields: [lojaId], references: [id])
+  descricao String?
+  ativo     Boolean  @default(true)
+  createdAt DateTime @default(now())
+}
+
+model Opcao {
+  id        Int      @id @default(autoincrement())
+  categoria String
+  valor     String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([categoria, valor])
+}
+
+model Atalho {
+  id         Int      @id @default(autoincrement())
+  posicao    Int      @default(0)
+  amperagem  String
+  tipo       String?
+  marca      String?
+  ativo      Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}
+
+model AplicacaoVeiculo {
+  id             String   @id
+  battery        String?
+  carBrand       String?
+  carModel       String?
+  carYearFrom    Int?
+  carYearTo      Int?
+  vehicleType    String?
+  amperagem      String?
+  tipo           String?
+  garantia       String?
+  cca            Float?
+  length         Float?
+  width          Float?
+  height         Float?
+  weight         Float?
+  batteryAlt     String?
+  imageUrl       String?
+  complex        Boolean  @default(false)
+  active         Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+}
