@@ -4,7 +4,6 @@ import { Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useState } from 'react';
 
-// Componente interno que usa useSearchParams
 function LoginForm() {
   const [identificador, setIdentificador] = useState('');
   const [senha, setSenha] = useState('');
@@ -57,7 +56,6 @@ function LoginForm() {
   );
 }
 
-// Página principal que envolve o formulário em Suspense
 export default function LoginPage() {
   return (
     <Suspense fallback={<div className="min-h-screen flex items-center justify-center">Carregando...</div>}>
