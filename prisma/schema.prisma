@@ -57,8 +57,10 @@ model Usuario {
   nome          String
   role          String   @default("funcionario")
   ativo         Boolean  @default(true)
+  protegido     Boolean  @default(false)
   lojaId        Int
   loja          Loja     @relation(fields: [lojaId], references: [id])
+  auditorias    Auditoria[]
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 }
@@ -116,4 +118,27 @@ model AplicacaoVeiculo {
   active         Boolean  @default(true)
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
+}
+
+model Auditoria {
+  id                   Int       @id @default(autoincrement())
+  usuarioId            Int?
+  usuario              Usuario?  @relation(fields: [usuarioId], references: [id], onDelete: SetNull)
+  usuarioNome          String?
+  usuarioIdentificador String?
+  acao                 String
+  entidade             String
+  entidadeId           String?
+  status               String    @default("sucesso")
+  resumo               String
+  detalhes             Json?
+  ip                   String?
+  userAgent            String?
+  createdAt            DateTime  @default(now())
+
+  @@index([usuarioId])
+  @@index([acao])
+  @@index([entidade])
+  @@index([status])
+  @@index([createdAt])
 }

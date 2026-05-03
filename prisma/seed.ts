@@ -23,7 +23,12 @@ async function main() {
   const adminHash = await bcrypt.hash('admin123', 10);
   await prisma.usuario.upsert({
     where: { identificador: 'admin' },
-    update: {},
+    update: {
+      role: 'admin',
+      lojaId: matriz.id,
+      ativo: true,
+      protegido: true,
+    },
     create: {
       identificador: 'admin',
       senhaHash: adminHash,
@@ -31,6 +36,7 @@ async function main() {
       role: 'admin',
       lojaId: matriz.id,
       ativo: true,
+      protegido: true,
     },
   });
   console.log('Usuário admin criado.');

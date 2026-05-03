@@ -8,6 +8,7 @@ export interface SessionData {
   nome: string;
   role: string;
   lojaId: number;
+  protegido: boolean;
   isLoggedIn: boolean;
 }
 

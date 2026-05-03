@@ -1,5 +1,6 @@
 import { prisma } from '@/lib/prisma';
 import { getSession } from '@/lib/session';
+import { registrarAuditoria } from '@/lib/auditoria';
 import { NextResponse } from 'next/server';
 
 export async function GET() {
@@ -39,6 +40,17 @@ export async function GET() {
     })),
     opcoes,
   };
+
+  await registrarAuditoria({
+    session,
+    acao: 'backup_exportado',
+    entidade: 'Backup',
+    resumo: `${session.nome} exportou um backup.`,
+    detalhes: {
+      produtos: produtos.length,
+      opcoes: opcoes.length,
+    },
+  });
 
   return NextResponse.json(backup);
 }

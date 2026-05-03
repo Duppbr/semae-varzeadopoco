@@ -9,9 +9,11 @@ export async function GET() {
   }
   return NextResponse.json({
     isLoggedIn: true,
+    id: session.userId,
     identificador: session.identificador,
     nome: session.nome,
     role: session.role,
     lojaId: session.lojaId,
+    protegido: session.protegido,
   });
 }

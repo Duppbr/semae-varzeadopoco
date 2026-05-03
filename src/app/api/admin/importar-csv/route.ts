@@ -1,13 +1,16 @@
 import { prisma } from '@/lib/prisma';
 import { getSession } from '@/lib/session';
+import { registrarAuditoria } from '@/lib/auditoria';
 import { NextRequest, NextResponse } from 'next/server';
 import Papa from 'papaparse';
 
+type LinhaCsv = Record<string, string | undefined>;
+
 export async function POST(req: NextRequest) {
+  const session = await getSession();
   try {
-    const session = await getSession();
     if (!session.isLoggedIn || session.role !== 'admin') {
-      return NextResponse.json({ erro: 'Não autorizado' }, { status: 401 });
+      return NextResponse.json({ erro: 'Nao autorizado' }, { status: 401 });
     }
 
     const formData = await req.formData();
@@ -17,71 +20,70 @@ export async function POST(req: NextRequest) {
     const lojaId = formData.get('lojaId') ? parseInt(formData.get('lojaId') as string) : null;
 
     if (!file || !tipo) {
-      return NextResponse.json({ erro: 'Arquivo e tipo são obrigatórios' }, { status: 400 });
+      return NextResponse.json({ erro: 'Arquivo e tipo sao obrigatorios' }, { status: 400 });
     }
-
     if ((tipo === 'estoque' || tipo === 'custo') && !lojaId) {
-      return NextResponse.json({ erro: 'lojaId é obrigatório para estoque e custo' }, { status: 400 });
+      return NextResponse.json({ erro: 'lojaId e obrigatorio para estoque e custo' }, { status: 400 });
     }
 
     const texto = await file.text();
-    const parsed = Papa.parse(texto, {
+    const parsed = Papa.parse<LinhaCsv>(texto, {
       header: true,
       skipEmptyLines: true,
       delimiter: ';',
     });
 
     if (parsed.errors.length > 0) {
+      await registrarAuditoria({
+        req,
+        session,
+        acao: 'csv_importado',
+        entidade: 'ImportacaoCSV',
+        status: 'erro',
+        resumo: `Erro ao ler CSV de ${tipo}.`,
+        detalhes: { arquivo: file.name, tipo, erros: parsed.errors.slice(0, 10) },
+      });
       return NextResponse.json({ erro: 'Erro ao ler CSV', detalhes: parsed.errors }, { status: 400 });
     }
 
-    const linhas = parsed.data as any[];
+    const linhas = parsed.data;
     const resultado = { processadas: 0, erros: [] as string[] };
 
     if (tipo === 'estoque') {
-      // Novo formato real: SKU;Descrição;Marca;Depósito;Filial;Qtd;Qtd reservada;Total;Custo
       for (const linha of linhas) {
         const sku = (linha.SKU || '').trim();
         const qtd = parseInt(linha.Qtd || '0');
 
         if (!sku) {
-          resultado.erros.push(`Linha com SKU vazio`);
+          resultado.erros.push('Linha com SKU vazio');
           continue;
         }
 
         const produto = await prisma.produto.findUnique({ where: { sku } });
         if (!produto) {
-          resultado.erros.push(`SKU ${sku} não encontrado`);
+          resultado.erros.push(`SKU ${sku} nao encontrado`);
           continue;
         }
 
-        // Atualiza ou cria registro apenas para a loja selecionada
         await prisma.produtoLoja.upsert({
           where: { produtoId_lojaId: { produtoId: produto.id, lojaId: lojaId! } },
-          create: {
-            produtoId: produto.id,
-            lojaId: lojaId!,
-            quantidadeEstoque: qtd,
-          },
-          update: {
-            quantidadeEstoque: qtd,
-          },
+          create: { produtoId: produto.id, lojaId: lojaId!, quantidadeEstoque: qtd },
+          update: { quantidadeEstoque: qtd },
         });
         resultado.processadas++;
       }
     } else if (tipo === 'produtos') {
-      // Produtos: SKU;Nome;Marca;Amperagem;Tipo;CCA;Garantia
       for (const linha of linhas) {
         const sku = (linha.SKU || '').trim();
         const nome = (linha.Nome || '').trim();
         const marca = (linha.Marca || '').trim();
         const amperagem = (linha.Amperagem || '').trim() || null;
         const tipoBateria = (linha.Tipo || '').trim() || null;
-        const cca = parseInt(linha.CCA) || null;
+        const cca = parseInt(linha.CCA || '') || null;
         const garantia = (linha.Garantia || '').trim() || null;
 
         if (!sku || !nome || !marca) {
-          resultado.erros.push(`Linha com SKU/Nome/Marca vazios`);
+          resultado.erros.push('Linha com SKU/Nome/Marca vazios');
           continue;
         }
 
@@ -92,20 +94,14 @@ export async function POST(req: NextRequest) {
           data: { sku, nome, marca, amperagem, tipo: tipoBateria, cca, garantia },
         });
 
-        // Cria registros vazios nas duas lojas
         for (const idLoja of [1, 2]) {
           await prisma.produtoLoja.create({
-            data: {
-              produtoId: produto.id,
-              lojaId: idLoja,
-              quantidadeEstoque: 0,
-            },
+            data: { produtoId: produto.id, lojaId: idLoja, quantidadeEstoque: 0 },
           });
         }
         resultado.processadas++;
       }
     } else if (tipo === 'custo') {
-      // Relação de custo: SKU;PrecoSugerido (ou pode ter nome/marca)
       for (const linha of linhas) {
         const sku = (linha.SKU || '').trim();
         const nome = (linha.Produto || linha.Nome || '').trim();
@@ -120,7 +116,7 @@ export async function POST(req: NextRequest) {
         }
 
         if (!produto) {
-          resultado.erros.push(`Produto não encontrado para SKU ${sku || nome}`);
+          resultado.erros.push(`Produto nao encontrado para SKU ${sku || nome}`);
           continue;
         }
 
@@ -128,7 +124,7 @@ export async function POST(req: NextRequest) {
           where: { produtoId_lojaId: { produtoId: produto.id, lojaId: lojaId! } },
         });
         if (!registro) {
-          resultado.erros.push(`Registro de loja não encontrado para SKU ${produto.sku}`);
+          resultado.erros.push(`Registro de loja nao encontrado para SKU ${produto.sku}`);
           continue;
         }
 
@@ -136,7 +132,7 @@ export async function POST(req: NextRequest) {
           await prisma.produtoLoja.update({
             where: { id: registro.id },
             data: {
-              precoSugerido: precoSugerido,
+              precoSugerido,
               precoCartao: precoSugerido,
               precoCartao3x: parseFloat((precoSugerido * 0.97).toFixed(2)),
               precoAvista: parseFloat((precoSugerido * 0.95).toFixed(2)),
@@ -148,9 +144,37 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    await registrarAuditoria({
+      req,
+      session,
+      acao: 'csv_importado',
+      entidade: 'ImportacaoCSV',
+      status: resultado.erros.length > 0 ? 'parcial' : 'sucesso',
+      resumo: `${session.nome} importou CSV de ${tipo}: ${resultado.processadas} linhas processadas.`,
+      detalhes: {
+        tipo,
+        lojaId,
+        arquivo: file.name,
+        processadas: resultado.processadas,
+        erros: resultado.erros.slice(0, 30),
+      },
+    });
+
     return NextResponse.json(resultado);
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const detalhe = error instanceof Error ? error.message : 'Erro desconhecido';
     console.error(error);
-    return NextResponse.json({ erro: 'Erro interno', detalhe: error.message }, { status: 500 });
+    if (session?.isLoggedIn) {
+      await registrarAuditoria({
+        req,
+        session,
+        acao: 'csv_importado',
+        entidade: 'ImportacaoCSV',
+        status: 'erro',
+        resumo: 'Erro ao importar CSV.',
+        detalhes: { erro: detalhe },
+      });
+    }
+    return NextResponse.json({ erro: 'Erro interno', detalhe }, { status: 500 });
   }
 }

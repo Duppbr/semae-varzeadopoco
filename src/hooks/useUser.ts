@@ -3,10 +3,12 @@ import { useEffect, useState } from 'react';
 
 interface User {
   isLoggedIn: boolean;
+  id: number;
   identificador: string;
   nome: string;
   role: string;
   lojaId: number;
+  protegido: boolean;
 }
 
 export function useUser() {

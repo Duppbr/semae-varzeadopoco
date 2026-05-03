@@ -38,21 +38,21 @@ export default function ConsultaPage() {
       router.push('/login');
       return;
     }
-    // Se não for admin e a loja da URL for diferente da dele, redireciona
     if (user.role !== 'admin' && parseInt(lojaId) !== user.lojaId) {
       router.push(`/consulta/${user.lojaId}`);
       return;
     }
+
     const fetchProdutos = async () => {
       const res = await fetch(`/api/produtos-loja?lojaId=${lojaId}`);
       if (res.ok) {
-        const data = await res.json();
-        // Ordena por precoCartao do maior para o menor
-        data.sort((a: any, b: any) => (b.precoCartao || 0) - (a.precoCartao || 0));
+        const data = (await res.json()) as ProdutoLojaData[];
+        data.sort((a, b) => (b.precoCartao || 0) - (a.precoCartao || 0));
         setProdutos(data);
       }
       setLoading(false);
     };
+
     fetchProdutos();
   }, [lojaId, user, userLoading, router]);
 
@@ -62,7 +62,7 @@ export default function ConsultaPage() {
 
   return (
     <div className="container mx-auto px-2 py-3 md:px-4 md:py-6">
-      <h1 className="text-xl font-bold mb-4 text-center md:text-left">🔋 Consulta de Baterias</h1>
+      <h1 className="text-xl font-bold mb-4 text-center md:text-left">Consulta de Baterias</h1>
       <ListaProdutos produtosIniciais={produtos} userRole={user?.role} />
     </div>
   );
