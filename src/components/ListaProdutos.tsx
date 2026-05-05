@@ -10,11 +10,45 @@ import {
   CheckCircle2,
   ChevronDown,
   ChevronUp,
+  ClipboardCheck,
+  MessageCircle,
   Search,
   SlidersHorizontal,
   X,
   Zap,
 } from 'lucide-react';
+
+// Converte dígitos em emojis de número para o formato WhatsApp
+function numerosParaEmojis(num: string): string {
+  const map: Record<string, string> = {
+    '0': '0️⃣', '1': '1️⃣', '2': '2️⃣', '3': '3️⃣', '4': '4️⃣',
+    '5': '5️⃣', '6': '6️⃣', '7': '7️⃣', '8': '8️⃣', '9': '9️⃣',
+  };
+  return num.split('').map(c => map[c] ?? c).join('');
+}
+
+function gerarTabelaWhatsApp(produtos: ProdutoConsulta[]): string {
+  if (!produtos.length) return '';
+  const fmt = (v: number) => v.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const linhas: string[] = [
+    'Olá, temos sim!!',
+    'segue abaixo marcas e valores: 👇🏻',
+    '',
+  ];
+  for (const { produto, precoCartao, precoAvista } of produtos) {
+    const amp = produto.amperagem ? ` ${produto.amperagem}` : '';
+    const gar = produto.garantia ? ` ${produto.garantia}` : '';
+    linhas.push(`${produto.marca}${amp}${gar}`);
+    if (produto.cca) linhas.push(`     CCA: ${numerosParaEmojis(String(produto.cca))}`);
+    if (precoCartao) linhas.push(`R$ ${fmt(precoCartao)} 💳`);
+    if (precoAvista) linhas.push(`R$ ${fmt(precoAvista)}💰`);
+    linhas.push('');
+  }
+  linhas.push('*Valores a Base de Troca ✅');
+  linhas.push('*Entrega e Instalação Gratis ✅');
+  linhas.push('*Check-Up Elétrico Grátis ✅');
+  return linhas.join('\n');
+}
 
 interface Opcao {
   id: number;
@@ -93,6 +127,8 @@ export default function ListaProdutos({
   const [mostrarDetalhesVeiculo, setMostrarDetalhesVeiculo] = useState(false);
   const [mostrarSemEstoque, setMostrarSemEstoque] = useState(false);
   const [tabelaAberta, setTabelaAberta] = useState(false);
+  const [copiado, setCopiado] = useState(false);
+  const [previewAberto, setPreviewAberto] = useState(false);
 
   const podeVerEstoque = userRole === 'admin' || userRole === 'supervisor';
 
@@ -414,6 +450,45 @@ export default function ListaProdutos({
             )}
           </div>
         </div>
+
+        {/* Botão de tabela WhatsApp — aparece quando há resultados */}
+        {temCriterio && produtosProcessados.length > 0 && (
+          <div className="space-y-2">
+            <div className="flex gap-2">
+              <button
+                onClick={() => {
+                  const texto = gerarTabelaWhatsApp(produtosProcessados);
+                  navigator.clipboard.writeText(texto).then(() => {
+                    setCopiado(true);
+                    setTimeout(() => setCopiado(false), 2500);
+                  });
+                }}
+                className={`flex-1 flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl text-sm font-medium transition ${
+                  copiado
+                    ? 'bg-green-600 text-white'
+                    : 'bg-green-50 border border-green-200 text-green-800 hover:bg-green-100'
+                }`}
+              >
+                {copiado ? <ClipboardCheck size={16} /> : <MessageCircle size={16} />}
+                {copiado ? 'Copiado! ✓' : 'Copiar Tabela WhatsApp'}
+              </button>
+              <button
+                onClick={() => setPreviewAberto(!previewAberto)}
+                className="px-3 py-2.5 rounded-xl text-sm border border-slate-200 text-slate-600 hover:bg-slate-50 transition"
+                title="Ver prévia"
+              >
+                {previewAberto ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+              </button>
+            </div>
+            {previewAberto && (
+              <textarea
+                readOnly
+                value={gerarTabelaWhatsApp(produtosProcessados)}
+                className="w-full text-xs font-mono bg-slate-900 text-green-400 rounded-xl p-3 h-48 resize-none border-0 focus:outline-none"
+              />
+            )}
+          </div>
+        )}
 
         {temCriterio && temMoto && (
           <button

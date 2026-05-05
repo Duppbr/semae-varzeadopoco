@@ -9,19 +9,25 @@ export async function GET() {
     return NextResponse.json({ erro: 'Não autorizado' }, { status: 401 });
   }
 
-  const produtos = await prisma.produto.findMany({
-    include: { lojas: true },
-  });
+  const [produtos, opcoes, atalhos] = await Promise.all([
+    prisma.produto.findMany({ include: { lojas: true } }),
+    prisma.opcao.findMany({ orderBy: [{ categoria: 'asc' }, { valor: 'asc' }] }),
+    prisma.atalho.findMany({ orderBy: { posicao: 'asc' } }),
+  ]);
 
-  const opcoes = await prisma.opcao.findMany();
-
-  // Monta um objeto estruturado (sem dados de usuário/senha)
   const backup = {
+    versao: 2,
     data: new Date().toISOString(),
+    resumo: {
+      produtos: produtos.length,
+      opcoes: opcoes.length,
+      atalhos: atalhos.length,
+    },
     produtos: produtos.map(p => ({
       sku: p.sku,
       nome: p.nome,
       marca: p.marca,
+      categoria: p.categoria,
       amperagem: p.amperagem,
       tipo: p.tipo,
       cca: p.cca,
@@ -39,17 +45,21 @@ export async function GET() {
       })),
     })),
     opcoes,
+    atalhos: atalhos.map(a => ({
+      posicao: a.posicao,
+      amperagem: a.amperagem,
+      tipo: a.tipo,
+      marca: a.marca,
+      ativo: a.ativo,
+    })),
   };
 
   await registrarAuditoria({
     session,
     acao: 'backup_exportado',
     entidade: 'Backup',
-    resumo: `${session.nome} exportou um backup.`,
-    detalhes: {
-      produtos: produtos.length,
-      opcoes: opcoes.length,
-    },
+    resumo: `${session.nome} exportou backup v2.`,
+    detalhes: backup.resumo,
   });
 
   return NextResponse.json(backup);
