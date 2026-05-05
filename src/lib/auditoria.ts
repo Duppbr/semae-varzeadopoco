@@ -1,4 +1,3 @@
-import { Prisma } from '@prisma/client';
 import { NextRequest } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import type { SessionData } from '@/lib/session';
@@ -43,7 +42,7 @@ export async function registrarAuditoria({
         status,
         resumo,
         detalhes: detalhes === undefined || detalhes === null
-          ? Prisma.JsonNull
+          ? null
           : JSON.parse(JSON.stringify(detalhes)),
         ip,
         userAgent,
