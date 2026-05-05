@@ -2,6 +2,7 @@
 import type { Metadata } from 'next';
 import './globals.css';
 import Navbar from '@/components/Navbar';
+import ServiceWorkerRegister from '@/components/ServiceWorkerRegister';
 
 export const metadata: Metadata = {
   title: 'Rios Baterias',
@@ -33,6 +34,7 @@ export default function RootLayout({
   return (
     <html lang="pt-BR">
       <body className="bg-gray-100">
+        <ServiceWorkerRegister />
         <Navbar />
         {children}
       </body>

@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Sem conexao - Rios Baterias</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #f1f5f9;
+      min-height: 100dvh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      text-align: center;
+    }
+    .card {
+      background: white;
+      border-radius: 20px;
+      padding: 40px 32px;
+      max-width: 360px;
+      width: 100%;
+      box-shadow: 0 4px 24px rgba(0,0,0,0.08);
+    }
+    .logo {
+      width: 72px;
+      height: 72px;
+      border-radius: 16px;
+      margin: 0 auto 20px;
+      display: block;
+    }
+    .icon-wifi {
+      font-size: 52px;
+      margin-bottom: 16px;
+      display: block;
+      opacity: 0.3;
+    }
+    h1 {
+      font-size: 20px;
+      font-weight: 700;
+      color: #0f172a;
+      margin-bottom: 8px;
+    }
+    p {
+      font-size: 14px;
+      color: #64748b;
+      line-height: 1.6;
+      margin-bottom: 28px;
+    }
+    .btn {
+      display: block;
+      width: 100%;
+      padding: 14px;
+      background: #2563eb;
+      color: white;
+      font-size: 15px;
+      font-weight: 600;
+      border: none;
+      border-radius: 12px;
+      cursor: pointer;
+      transition: background 0.15s;
+      text-decoration: none;
+    }
+    .btn:active { background: #1d4ed8; }
+    .btn-secondary {
+      margin-top: 10px;
+      background: transparent;
+      color: #64748b;
+      border: 1.5px solid #e2e8f0;
+    }
+    .btn-secondary:active { background: #f8fafc; }
+    .hint {
+      font-size: 12px;
+      color: #94a3b8;
+      margin-top: 20px;
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <img src="/icon-192.png" alt="Rios Baterias" class="logo" onerror="this.style.display='none'" />
+    <span class="icon-wifi">📶</span>
+    <h1>Sem conexao com a internet</h1>
+    <p>
+      Nao foi possivel carregar o app.<br/>
+      Verifique o Wi-Fi ou os dados moveis e tente novamente.
+    </p>
+    <button class="btn" onclick="tentar()">
+      Tentar novamente
+    </button>
+    <button class="btn btn-secondary" onclick="history.back()">
+      Voltar
+    </button>
+    <p class="hint">Se ja esteve conectado antes, alguns dados podem estar disponiveis no cache.</p>
+  </div>
+
+  <script>
+    function tentar() {
+      const btn = document.querySelector('.btn');
+      btn.textContent = 'Verificando...';
+      btn.disabled = true;
+      setTimeout(() => {
+        window.location.reload();
+      }, 800);
+    }
+
+    // Monitora quando a conexao volta e recarrega automaticamente
+    window.addEventListener('online', () => {
+      window.location.reload();
+    });
+  </script>
+</body>
+</html>
