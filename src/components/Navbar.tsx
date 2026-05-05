@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { useUser } from '@/hooks/useUser';
 import { useRouter, usePathname } from 'next/navigation';
-import { BatteryCharging, ChevronRight, Menu, Settings, X } from 'lucide-react';
+import { ChevronRight, Menu, Settings, X } from 'lucide-react';
 import { useState } from 'react';
 
 export default function Navbar() {
@@ -31,9 +31,7 @@ export default function Navbar() {
         <div className="flex items-center justify-between h-14">
           {/* Logo */}
           <Link href="/" className="flex items-center gap-2 font-bold text-slate-900">
-            <div className="bg-blue-600 text-white w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0">
-              <BatteryCharging size={16} />
-            </div>
+            <img src="/icon-192.png" alt="Rios Baterias" className="w-8 h-8 rounded-lg object-contain flex-shrink-0" />
             <span className="text-base">Rios Baterias</span>
           </Link>
 

@@ -101,9 +101,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         {/* Logo */}
         <div className="p-5 flex items-center justify-between border-b border-slate-200 flex-shrink-0">
           <Link href="/admin" onClick={() => setSidebarAberto(false)} className="flex items-center gap-3">
-            <div className="bg-blue-600 text-white w-9 h-9 rounded-lg flex items-center justify-center font-bold text-sm flex-shrink-0">
-              RB
-            </div>
+            <img src="/icon-192.png" alt="Rios Baterias" className="w-9 h-9 rounded-lg object-contain flex-shrink-0" />
             <div>
               <span className="font-bold block leading-tight text-slate-900">Rios Baterias</span>
               <span className="text-xs text-slate-500">Painel admin</span>

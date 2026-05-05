@@ -12,8 +12,8 @@ export default function HomePage() {
   return (
     <div className="min-h-[80vh] flex flex-col items-center justify-center px-4">
       <div className="text-center mb-10">
-        <div className="bg-blue-600 w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-4">
-          <span className="text-white text-2xl font-bold">RB</span>
+        <div className="w-16 h-16 mx-auto mb-4">
+          <img src="/icon-512.png" alt="Rios Baterias" className="w-full h-full rounded-2xl object-contain" />
         </div>
         <h1 className="text-3xl font-extrabold text-gray-900 mb-2">Rios Baterias</h1>
         <p className="text-gray-500">Selecione a loja para consultar preços</p>
