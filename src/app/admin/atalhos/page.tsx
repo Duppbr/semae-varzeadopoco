@@ -3,32 +3,99 @@
 import { useEffect, useState } from 'react';
 import { useUser } from '@/hooks/useUser';
 import { useRouter } from 'next/navigation';
+import { ChevronDown, ChevronUp, GripVertical, Plus, Trash2 } from 'lucide-react';
 
-type Opcao = {
-  id: number;
-  categoria: string;
-  valor: string;
-};
+type Opcao = { id: number; categoria: string; valor: string };
+type Atalho = { id: number; posicao: number; amperagem: string; tipo: string | null; marca: string | null; ativo: boolean };
+
+// MUDANÇA: no mobile não existe drag & drop nativo funcional com toque.
+// Esta função reordena usando botões ↑ ↓ dentro de cada card.
+// A lógica de persistência (salvar posições) é a mesma do drag & drop.
+async function salvarPosicoes(lista: Atalho[]) {
+  await Promise.all(
+    lista.map((item, i) =>
+      fetch('/api/admin/atalhos', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: item.id, posicao: i + 1 }),
+      })
+    )
+  );
+}
+
+function AtalhoCardMobile({
+  atalho,
+  index,
+  total,
+  onMover,
+  onExcluir,
+}: {
+  atalho: Atalho;
+  index: number;
+  total: number;
+  onMover: (de: number, para: number) => void;
+  onExcluir: (id: number) => void;
+}) {
+  return (
+    <div className="bg-white rounded-xl border border-slate-200 shadow-sm flex items-center gap-3 px-4 py-3">
+      {/* Posição */}
+      <span className="text-slate-400 text-xs w-5 text-center font-mono">{atalho.posicao}</span>
+
+      {/* Info */}
+      <div className="flex-1 min-w-0">
+        <span className="font-bold text-slate-900 text-sm">{atalho.amperagem.replace('ah', '')} Ah</span>
+        {atalho.tipo && <span className="text-xs text-slate-500 ml-2">{atalho.tipo}</span>}
+        {atalho.marca && <span className="text-xs text-slate-400 ml-1">· {atalho.marca}</span>}
+      </div>
+
+      {/* Controles de posição */}
+      <div className="flex flex-col gap-0.5">
+        <button
+          onClick={() => onMover(index, index - 1)}
+          disabled={index === 0}
+          className="p-1 text-slate-400 hover:text-slate-700 disabled:opacity-20 hover:bg-slate-100 rounded"
+          aria-label="Mover para cima"
+        >
+          <ChevronUp size={15} />
+        </button>
+        <button
+          onClick={() => onMover(index, index + 1)}
+          disabled={index === total - 1}
+          className="p-1 text-slate-400 hover:text-slate-700 disabled:opacity-20 hover:bg-slate-100 rounded"
+          aria-label="Mover para baixo"
+        >
+          <ChevronDown size={15} />
+        </button>
+      </div>
+
+      {/* Excluir */}
+      <button
+        onClick={() => onExcluir(atalho.id)}
+        className="p-2 text-red-500 hover:bg-red-50 rounded-lg flex-shrink-0"
+        aria-label="Excluir"
+      >
+        <Trash2 size={15} />
+      </button>
+    </div>
+  );
+}
 
 export default function AdminAtalhosPage() {
   const { user, loading: userLoading } = useUser();
   const router = useRouter();
-  const [atalhos, setAtalhos] = useState<any[]>([]);
+  const [atalhos, setAtalhos] = useState<Atalho[]>([]);
   const [loading, setLoading] = useState(true);
   const [opcoes, setOpcoes] = useState<Opcao[]>([]);
   const [novaAmperagem, setNovaAmperagem] = useState('');
   const [novoTipo, setNovoTipo] = useState('');
   const [novaMarca, setNovaMarca] = useState('');
 
-  // Estado para controle do drag
+  // Desktop: drag & drop state
   const [dragIndex, setDragIndex] = useState<number | null>(null);
 
   useEffect(() => {
     if (userLoading) return;
-    if (!user || user.role !== 'admin') {
-      router.push('/login');
-      return;
-    }
+    if (!user || user.role !== 'admin') { router.push('/login'); return; }
     carregar();
     carregarOpcoes();
   }, [user, userLoading]);
@@ -42,30 +109,21 @@ export default function AdminAtalhosPage() {
 
   const carregarOpcoes = async () => {
     const res = await fetch('/api/admin/opcoes');
-    const data = await res.json();
-    setOpcoes(data);
+    setOpcoes(await res.json());
   };
 
-  const amperagens = opcoes.filter((o) => o.categoria === 'amperagem').map((o) => o.valor);
-  const tipos = opcoes.filter((o) => o.categoria === 'tipo').map((o) => o.valor);
-  const marcas = opcoes.filter((o) => o.categoria === 'marca').map((o) => o.valor);
+  const amperagens = opcoes.filter(o => o.categoria === 'amperagem').map(o => o.valor);
+  const tipos = opcoes.filter(o => o.categoria === 'tipo').map(o => o.valor);
+  const marcas = opcoes.filter(o => o.categoria === 'marca').map(o => o.valor);
 
   const adicionar = async () => {
     if (!novaAmperagem) return;
     await fetch('/api/admin/atalhos', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        posicao: atalhos.length + 1,
-        amperagem: novaAmperagem,
-        tipo: novoTipo || null,
-        marca: novaMarca || null,
-        ativo: true,
-      }),
+      body: JSON.stringify({ posicao: atalhos.length + 1, amperagem: novaAmperagem, tipo: novoTipo || null, marca: novaMarca || null, ativo: true }),
     });
-    setNovaAmperagem('');
-    setNovoTipo('');
-    setNovaMarca('');
+    setNovaAmperagem(''); setNovoTipo(''); setNovaMarca('');
     carregar();
   };
 
@@ -78,40 +136,26 @@ export default function AdminAtalhosPage() {
     carregar();
   };
 
-  // Funções de drag & drop
-  const handleDragStart = (index: number) => {
-    setDragIndex(index);
+  // MUDANÇA: reordenação por botões no mobile (substituiu drag & drop que não funciona bem em touch)
+  const moverItem = async (de: number, para: number) => {
+    if (para < 0 || para >= atalhos.length) return;
+    const novaLista = [...atalhos];
+    const [removido] = novaLista.splice(de, 1);
+    novaLista.splice(para, 0, removido);
+    setAtalhos(novaLista);
+    await salvarPosicoes(novaLista);
+    carregar();
   };
 
-  const handleDragOver = (e: React.DragEvent) => {
-    e.preventDefault(); // necessário para permitir o drop
-  };
-
+  // Desktop: drag & drop (preservado)
+  const handleDragStart = (index: number) => setDragIndex(index);
+  const handleDragOver = (e: React.DragEvent) => e.preventDefault();
   const handleDrop = async (index: number) => {
     if (dragIndex === null || dragIndex === index) return;
-
-    // Reordena localmente
     const novaLista = [...atalhos];
     const [removido] = novaLista.splice(dragIndex, 1);
     novaLista.splice(index, 0, removido);
-
-    // Atualiza a posição de cada item
-    const atualizacoes = novaLista.map((item, i) => ({
-      id: item.id,
-      posicao: i + 1,
-    }));
-
-    // Envia todas as atualizações de posição
-    await Promise.all(
-      atualizacoes.map((up) =>
-        fetch('/api/admin/atalhos', {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ id: up.id, posicao: up.posicao }),
-        })
-      )
-    );
-
+    await salvarPosicoes(novaLista);
     setAtalhos(novaLista);
     setDragIndex(null);
   };
@@ -119,77 +163,85 @@ export default function AdminAtalhosPage() {
   if (userLoading || loading) return <div className="p-8">Carregando...</div>;
 
   return (
-    <div className="container mx-auto px-4 py-8">
-      <h1 className="text-2xl font-bold mb-6">⚡ Gerenciar Atalhos da Consulta</h1>
+    <div className="space-y-5">
+      <h1 className="text-xl md:text-2xl font-bold text-slate-900">Atalhos da consulta</h1>
+      <p className="text-sm text-slate-500 -mt-3">Os atalhos aparecem na tela de consulta para acesso rápido às baterias mais comuns.</p>
 
-      <div className="bg-white p-4 rounded-xl shadow mb-6 flex gap-2 items-end flex-wrap">
-        <div>
-          <label className="block text-xs mb-1">Amperagem *</label>
-          <select
-            value={novaAmperagem}
-            onChange={(e) => setNovaAmperagem(e.target.value)}
-            className="border p-2 rounded"
-            required
-          >
-            <option value="">Selecione...</option>
-            {amperagens.map((amp) => (
-              <option key={amp} value={amp}>
-                {amp}
-              </option>
-            ))}
-          </select>
+      {/* Formulário de adição */}
+      <div className="bg-white border border-slate-200 rounded-xl p-4">
+        <h2 className="text-sm font-semibold text-slate-700 mb-3 flex items-center gap-2">
+          <Plus size={16} className="text-green-600" />
+          Novo atalho
+        </h2>
+        {/* MUDANÇA: grid 2 colunas no mobile em vez de flex-wrap que transbordava */}
+        <div className="grid grid-cols-2 md:flex md:flex-wrap gap-2">
+          <div className="col-span-2 md:col-span-1">
+            <label className="block text-xs text-slate-500 mb-1">Amperagem *</label>
+            <select value={novaAmperagem} onChange={e => setNovaAmperagem(e.target.value)} className="w-full border border-slate-300 px-3 py-2 rounded-lg text-sm bg-white" required>
+              <option value="">Selecione...</option>
+              {amperagens.map(amp => <option key={amp} value={amp}>{amp}</option>)}
+            </select>
+          </div>
+          <div>
+            <label className="block text-xs text-slate-500 mb-1">Tipo</label>
+            <select value={novoTipo} onChange={e => setNovoTipo(e.target.value)} className="w-full border border-slate-300 px-3 py-2 rounded-lg text-sm bg-white">
+              <option value="">Todos</option>
+              {tipos.map(t => <option key={t} value={t}>{t}</option>)}
+            </select>
+          </div>
+          <div>
+            <label className="block text-xs text-slate-500 mb-1">Marca</label>
+            <select value={novaMarca} onChange={e => setNovaMarca(e.target.value)} className="w-full border border-slate-300 px-3 py-2 rounded-lg text-sm bg-white">
+              <option value="">Todas</option>
+              {marcas.map(m => <option key={m} value={m}>{m}</option>)}
+            </select>
+          </div>
+          <div className="col-span-2 md:col-span-1 flex items-end">
+            <button
+              onClick={adicionar}
+              disabled={!novaAmperagem}
+              className="w-full md:w-auto bg-green-600 text-white px-5 py-2 rounded-lg text-sm font-medium hover:bg-green-700 disabled:opacity-50 transition"
+            >
+              + Adicionar
+            </button>
+          </div>
         </div>
-        <div>
-          <label className="block text-xs mb-1">Tipo (opcional)</label>
-          <select
-            value={novoTipo}
-            onChange={(e) => setNovoTipo(e.target.value)}
-            className="border p-2 rounded"
-          >
-            <option value="">Todos</option>
-            {tipos.map((t) => (
-              <option key={t} value={t}>
-                {t}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div>
-          <label className="block text-xs mb-1">Marca (opcional)</label>
-          <select
-            value={novaMarca}
-            onChange={(e) => setNovaMarca(e.target.value)}
-            className="border p-2 rounded"
-          >
-            <option value="">Todas</option>
-            {marcas.map((m) => (
-              <option key={m} value={m}>
-                {m}
-              </option>
-            ))}
-          </select>
-        </div>
-        <button
-          onClick={adicionar}
-          className="bg-green-600 text-white px-4 py-2 rounded"
-        >
-          + Adicionar
-        </button>
       </div>
 
-      <div className="bg-white rounded-xl shadow overflow-x-auto">
-        <table className="min-w-full text-sm">
-          <thead className="bg-gray-50">
+      {/* MUDANÇA: cards com botões ↑↓ no mobile */}
+      <div className="md:hidden space-y-2">
+        {atalhos.map((a, index) => (
+          <AtalhoCardMobile
+            key={a.id}
+            atalho={a}
+            index={index}
+            total={atalhos.length}
+            onMover={moverItem}
+            onExcluir={excluir}
+          />
+        ))}
+        {atalhos.length === 0 && (
+          <div className="bg-white rounded-xl border border-dashed border-slate-300 p-8 text-center text-slate-500 text-sm">
+            Nenhum atalho cadastrado.
+          </div>
+        )}
+        <p className="text-xs text-slate-400 text-center pt-1">Use os botões ↑↓ para reordenar</p>
+      </div>
+
+      {/* MUDANÇA: tabela com drag & drop preservada para desktop */}
+      <div className="hidden md:block bg-white rounded-xl shadow-sm border border-slate-200 overflow-x-auto">
+        <table className="min-w-full text-sm divide-y divide-slate-200">
+          <thead className="bg-slate-50">
             <tr>
-              <th className="px-4 py-2 w-10"></th>
-              <th className="px-4 py-2">#</th>
-              <th className="px-4 py-2">Amperagem</th>
-              <th className="px-4 py-2">Tipo</th>
-              <th className="px-4 py-2">Marca</th>
-              <th className="px-4 py-2">Ações</th>
+              <th className="px-4 py-3 w-10 text-slate-400"><GripVertical size={16} className="mx-auto" /></th>
+              <th className="px-4 py-3 text-left text-xs font-medium text-slate-500">#</th>
+              <th className="px-4 py-3 text-left text-xs font-medium text-slate-500">Amperagem</th>
+              <th className="px-4 py-3 text-left text-xs font-medium text-slate-500">Tipo</th>
+              <th className="px-4 py-3 text-left text-xs font-medium text-slate-500">Marca</th>
+              <th className="px-4 py-3 text-left text-xs font-medium text-slate-500">Ações</th>
             </tr>
           </thead>
-          <tbody>
+          <tbody className="divide-y divide-slate-100">
             {atalhos.map((a, index) => (
               <tr
                 key={a.id}
@@ -197,20 +249,18 @@ export default function AdminAtalhosPage() {
                 onDragStart={() => handleDragStart(index)}
                 onDragOver={handleDragOver}
                 onDrop={() => handleDrop(index)}
-                className={`cursor-grab active:cursor-grabbing ${
-                  dragIndex === index ? 'opacity-50' : ''
-                }`}
+                className={`cursor-grab active:cursor-grabbing hover:bg-slate-50 ${dragIndex === index ? 'opacity-50' : ''}`}
               >
-                <td className="px-2 py-2 text-gray-400 text-center">⠿</td>
-                <td className="px-4 py-2">{a.posicao}</td>
-                <td className="px-4 py-2">{a.amperagem}</td>
-                <td className="px-4 py-2">{a.tipo || '—'}</td>
-                <td className="px-4 py-2">{a.marca || '—'}</td>
-                <td className="px-4 py-2">
-                  <button
-                    onClick={() => excluir(a.id)}
-                    className="text-red-600 hover:underline"
-                  >
+                <td className="px-4 py-3 text-slate-400 text-center">
+                  <GripVertical size={16} className="mx-auto" />
+                </td>
+                <td className="px-4 py-3 text-slate-500">{a.posicao}</td>
+                <td className="px-4 py-3 font-medium">{a.amperagem}</td>
+                <td className="px-4 py-3">{a.tipo || '—'}</td>
+                <td className="px-4 py-3">{a.marca || '—'}</td>
+                <td className="px-4 py-3">
+                  <button onClick={() => excluir(a.id)} className="inline-flex items-center gap-1 text-red-600 hover:underline text-sm">
+                    <Trash2 size={13} />
                     Excluir
                   </button>
                 </td>
@@ -218,9 +268,7 @@ export default function AdminAtalhosPage() {
             ))}
           </tbody>
         </table>
-        <p className="text-xs text-gray-500 p-4 pt-0">
-          Arraste as linhas para reordenar (pelos ícones ⠿)
-        </p>
+        <p className="text-xs text-slate-400 p-4 pt-2">Arraste as linhas pelo ícone para reordenar.</p>
       </div>
     </div>
   );

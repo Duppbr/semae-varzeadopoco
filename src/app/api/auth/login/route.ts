@@ -4,6 +4,27 @@ import bcrypt from 'bcryptjs';
 import { getSession } from '@/lib/session';
 import { registrarAuditoria } from '@/lib/auditoria';
 
+function parseDispositivo(ua: string | null): string {
+  if (!ua) return 'Desconhecido';
+  const isMobile = /Mobile|Android|iPhone|iPad/i.test(ua);
+  let os = '';
+  if (/Android/i.test(ua)) { const m = ua.match(/Android ([\d.]+)/); os = m ? `Android ${m[1]}` : 'Android'; }
+  else if (/iPhone/i.test(ua)) os = 'iPhone';
+  else if (/iPad/i.test(ua)) os = 'iPad';
+  else if (/Windows NT 10/i.test(ua)) os = 'Windows 10';
+  else if (/Windows NT 6\.1/i.test(ua)) os = 'Windows 7';
+  else if (/Windows/i.test(ua)) os = 'Windows';
+  else if (/Mac OS X/i.test(ua)) os = 'macOS';
+  else if (/Linux/i.test(ua)) os = 'Linux';
+  let browser = '';
+  if (/Edg\//i.test(ua)) browser = 'Edge';
+  else if (/OPR\//i.test(ua)) browser = 'Opera';
+  else if (/Chrome\//i.test(ua)) { const m = ua.match(/Chrome\/([\d]+)/); browser = `Chrome ${m?.[1] ?? ''}`; }
+  else if (/Firefox\//i.test(ua)) { const m = ua.match(/Firefox\/([\d]+)/); browser = `Firefox ${m?.[1] ?? ''}`; }
+  else if (/Safari\//i.test(ua)) browser = 'Safari';
+  return [isMobile ? 'Celular' : 'Computador', os, browser].filter(Boolean).join(' · ');
+}
+
 export async function POST(req: NextRequest) {
   const { identificador, senha } = await req.json();
 
@@ -64,6 +85,7 @@ export async function POST(req: NextRequest) {
   session.isLoggedIn = true;
   await session.save();
 
+  const ua = req.headers.get('user-agent');
   await registrarAuditoria({
     req,
     session,
@@ -75,6 +97,7 @@ export async function POST(req: NextRequest) {
       role: usuario.role,
       lojaId: usuario.lojaId,
       protegido: usuario.protegido,
+      dispositivo: parseDispositivo(ua),
     },
   });
 

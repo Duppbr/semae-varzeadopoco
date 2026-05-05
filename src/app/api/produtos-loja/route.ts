@@ -16,6 +16,8 @@ export async function GET(req: NextRequest) {
     orderBy: { produto: { nome: 'asc' } },
   });
 
+  // MUDANÇA: adicionado campo prioridade na resposta para exibir indicador visual
+  // no ProdutoCard da tela de consulta (estava faltando, por isso nunca aparecia)
   const formatados = produtosLoja.map(pl => ({
     produto: {
       id: pl.produto.id,
@@ -32,6 +34,7 @@ export async function GET(req: NextRequest) {
     precoAvista: pl.precoAvista,
     precoAvistaMinimo: pl.precoAvistaMinimo,
     quantidadeEstoque: pl.quantidadeEstoque,
+    prioridade: pl.prioridade,
   }));
 
   return NextResponse.json(formatados);

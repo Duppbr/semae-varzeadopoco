@@ -98,11 +98,7 @@ export async function PUT(req: NextRequest) {
   }
   if (alvo.role === 'admin' && ativo === false) {
     const outrosAdminsAtivos = await prisma.usuario.count({
-      where: {
-        id: { not: id },
-        role: 'admin',
-        ativo: true,
-      },
+      where: { id: { not: id }, role: 'admin', ativo: true },
     });
     if (outrosAdminsAtivos === 0) {
       return NextResponse.json({
@@ -124,15 +120,56 @@ export async function PUT(req: NextRequest) {
     entidadeId: id,
     resumo: `${session.nome} ${ativo ? 'ativou' : 'desativou'} o usuario ${usuario.nome}.`,
     detalhes: {
-      usuario: {
-        id: usuario.id,
-        identificador: usuario.identificador,
-        nome: usuario.nome,
-        role: usuario.role,
-      },
+      usuario: { id: usuario.id, identificador: usuario.identificador, nome: usuario.nome, role: usuario.role },
       protegido: usuario.protegido,
     },
   });
 
   return NextResponse.json(usuario);
+}
+
+// MUDANÇA: rota DELETE para excluir usuário permanentemente.
+// Bloqueia exclusão de usuários protegidos (donos) e do próprio usuário logado.
+// A confirmação visual (digitar o identificador) é feita no frontend — aqui só a lógica de negócio.
+export async function DELETE(req: NextRequest) {
+  const session = await getSession();
+  if (!session.isLoggedIn || session.role !== 'admin') {
+    return NextResponse.json({ erro: 'Nao autorizado' }, { status: 401 });
+  }
+
+  const { id } = await req.json();
+  if (!id) {
+    return NextResponse.json({ erro: 'ID obrigatorio' }, { status: 400 });
+  }
+
+  const alvo = await prisma.usuario.findUnique({ where: { id } });
+  if (!alvo) {
+    return NextResponse.json({ erro: 'Usuario nao encontrado' }, { status: 404 });
+  }
+  if (alvo.protegido) {
+    return NextResponse.json({ erro: 'O usuario dono protegido nao pode ser excluido.' }, { status: 403 });
+  }
+  if (alvo.id === session.userId) {
+    return NextResponse.json({ erro: 'Voce nao pode excluir sua propria conta.' }, { status: 403 });
+  }
+
+  await prisma.usuario.delete({ where: { id } });
+
+  await registrarAuditoria({
+    req,
+    session,
+    acao: 'usuario_excluido',
+    entidade: 'Usuario',
+    entidadeId: id,
+    resumo: `${session.nome} excluiu o usuario ${alvo.nome} (${alvo.identificador}).`,
+    detalhes: {
+      id: alvo.id,
+      identificador: alvo.identificador,
+      nome: alvo.nome,
+      role: alvo.role,
+      lojaId: alvo.lojaId,
+    },
+  });
+
+  return NextResponse.json({ ok: true });
 }

@@ -1,8 +1,10 @@
 'use client';
 
-import { useEffect, useMemo, useState, type ElementType, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState, type ElementType, type ReactNode } from 'react';
 import ProdutoCard from './ProdutoCard';
+import TabelaConversao from './TabelaConversao';
 import {
+  ArrowLeftRight,
   BatteryCharging,
   CarFront,
   CheckCircle2,
@@ -60,6 +62,8 @@ interface ProdutoConsulta {
   precoAvista: number | null;
   precoAvistaMinimo: number | null;
   quantidadeEstoque: number;
+  // MUDANÇA: prioridade agora vem da API para exibir indicador visual no card
+  prioridade: string;
 }
 
 type ModoConsulta = 'atalhos' | 'veiculo' | 'busca';
@@ -87,8 +91,14 @@ export default function ListaProdutos({
   const [sugestoesVeiculos, setSugestoesVeiculos] = useState<VeiculoSugestao[]>([]);
   const [veiculoSelecionado, setVeiculoSelecionado] = useState<VeiculoSugestao | null>(null);
   const [mostrarDetalhesVeiculo, setMostrarDetalhesVeiculo] = useState(false);
+  const [mostrarSemEstoque, setMostrarSemEstoque] = useState(false);
+  const [tabelaAberta, setTabelaAberta] = useState(false);
 
   const podeVerEstoque = userRole === 'admin' || userRole === 'supervisor';
+
+  // MUDANÇA: ref para a seção de resultados — usada para scroll suave ao aplicar filtro
+  // O usuário clicava num atalho mas precisava rolar manualmente para ver os resultados
+  const resultadosRef = useRef<HTMLElement>(null);
 
   useEffect(() => {
     Promise.all([
@@ -117,6 +127,7 @@ export default function ListaProdutos({
     setVeiculoSelecionado(null);
     setVeiculoBusca('');
     setSugestoesVeiculos([]);
+    setMostrarSemEstoque(false);
   };
 
   const trocarModo = (novoModo: ModoConsulta) => {
@@ -131,6 +142,11 @@ export default function ListaProdutos({
     setFiltroMarca(a.marca || '');
     setFiltroGarantia('');
     setBusca('');
+    // MUDANÇA: scroll suave para os resultados após selecionar atalho
+    // Antes o usuário ficava olhando para a seção de atalhos sem perceber que havia resultados abaixo
+    setTimeout(() => {
+      resultadosRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 80);
   };
 
   const aplicarVeiculo = (v: VeiculoSugestao) => {
@@ -142,6 +158,10 @@ export default function ListaProdutos({
     setFiltroMarca('');
     setFiltroGarantia('');
     setBusca('');
+    // MUDANÇA: scroll suave para resultados ao selecionar veículo — mesmo padrão do atalho
+    setTimeout(() => {
+      resultadosRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 80);
   };
 
   const buscarVeiculos = async (termo: string) => {
@@ -164,7 +184,9 @@ export default function ListaProdutos({
     Boolean(busca || filtroAmperagem || filtroTipo || filtroMarca || filtroGarantia || veiculoSelecionado || atalhoSelecionadoId);
 
   const produtosProcessados = useMemo(() => {
-    let lista = (produtosIniciais || []).filter(p => p.quantidadeEstoque > 0);
+    let lista = mostrarSemEstoque
+      ? (produtosIniciais || [])
+      : (produtosIniciais || []).filter(p => p.quantidadeEstoque > 0);
 
     if (busca) {
       const b = busca.toLowerCase();
@@ -179,8 +201,31 @@ export default function ListaProdutos({
     if (filtroMarca) lista = lista.filter(p => p.produto.marca === filtroMarca);
     if (filtroGarantia) lista = lista.filter(p => (p.produto.garantia || '') === filtroGarantia);
 
-    return [...lista].sort((a, b) => (b.precoCartao || b.precoAvista || 0) - (a.precoCartao || a.precoAvista || 0));
-  }, [produtosIniciais, filtroAmperagem, filtroTipo, filtroMarca, filtroGarantia, busca]);
+    return [...lista].sort((a, b) => {
+      // Com estoque sempre primeiro
+      if (a.quantidadeEstoque > 0 && b.quantidadeEstoque === 0) return -1;
+      if (a.quantidadeEstoque === 0 && b.quantidadeEstoque > 0) return 1;
+      return (b.precoCartao || b.precoAvista || 0) - (a.precoCartao || a.precoAvista || 0);
+    });
+  }, [produtosIniciais, filtroAmperagem, filtroTipo, filtroMarca, filtroGarantia, busca, mostrarSemEstoque]);
+
+  const temMoto = useMemo(() =>
+    produtosProcessados.some(p => p.produto.tipo?.toLowerCase().includes('moto')) ||
+    filtroTipo.toLowerCase().includes('moto') ||
+    (veiculoSelecionado?.vehicleType?.toLowerCase().includes('moto') ?? false),
+  [produtosProcessados, filtroTipo, veiculoSelecionado]);
+
+  const semEstoqueCount = useMemo(() =>
+    (produtosIniciais || []).filter(p => {
+      if (p.quantidadeEstoque > 0) return false;
+      if (busca) { const b = busca.toLowerCase(); if (!p.produto.nome.toLowerCase().includes(b) && !p.produto.sku.toLowerCase().includes(b) && !p.produto.marca.toLowerCase().includes(b)) return false; }
+      if (filtroAmperagem && p.produto.amperagem !== filtroAmperagem) return false;
+      if (filtroTipo && p.produto.tipo !== filtroTipo) return false;
+      if (filtroMarca && p.produto.marca !== filtroMarca) return false;
+      if (filtroGarantia && (p.produto.garantia || '') !== filtroGarantia) return false;
+      return true;
+    }).length,
+  [produtosIniciais, filtroAmperagem, filtroTipo, filtroMarca, filtroGarantia, busca]);
 
   const atalhosVisiveis = expandedAtalhos ? atalhos : atalhos.slice(0, 8);
 
@@ -335,8 +380,10 @@ export default function ListaProdutos({
         </section>
       )}
 
-      <section className="space-y-4">
-        <div className="flex items-center justify-between gap-3">
+      {tabelaAberta && <TabelaConversao onFechar={() => setTabelaAberta(false)} />}
+
+      <section ref={resultadosRef} className="space-y-4 scroll-mt-4">
+        <div className="flex items-start justify-between gap-3">
           <div>
             <h3 className="text-lg font-bold text-slate-950 flex items-center gap-2">
               <BatteryCharging size={20} className="text-blue-600" />
@@ -346,19 +393,43 @@ export default function ListaProdutos({
               {temCriterio ? `${produtosProcessados.length} bateria(s) encontrada(s)` : 'Escolha um criterio acima para consultar.'}
             </p>
           </div>
-          {temCriterio && (
-            <button onClick={limparFiltros} className="inline-flex items-center gap-1 text-sm text-slate-600 border border-slate-200 px-3 py-2 rounded-lg hover:bg-slate-50">
-              <X size={14} />
-              Limpar
-            </button>
-          )}
+          <div className="flex items-center gap-2 flex-wrap justify-end">
+            {temCriterio && semEstoqueCount > 0 && (
+              <button
+                onClick={() => setMostrarSemEstoque(!mostrarSemEstoque)}
+                className={`inline-flex items-center gap-1 text-xs px-3 py-2 rounded-lg border transition ${
+                  mostrarSemEstoque
+                    ? 'bg-slate-700 text-white border-slate-700'
+                    : 'border-slate-300 text-slate-600 hover:bg-slate-50'
+                }`}
+              >
+                {mostrarSemEstoque ? 'Ocultar sem estoque' : `Sem estoque (${semEstoqueCount})`}
+              </button>
+            )}
+            {temCriterio && (
+              <button onClick={limparFiltros} className="inline-flex items-center gap-1 text-sm text-slate-600 border border-slate-200 px-3 py-2 rounded-lg hover:bg-slate-50">
+                <X size={14} />
+                Limpar
+              </button>
+            )}
+          </div>
         </div>
+
+        {temCriterio && temMoto && (
+          <button
+            onClick={() => setTabelaAberta(true)}
+            className="w-full flex items-center justify-center gap-2 py-2.5 px-4 bg-yellow-50 border border-yellow-200 rounded-xl text-sm font-medium text-yellow-800 hover:bg-yellow-100 transition"
+          >
+            <ArrowLeftRight size={16} />
+            Ver tabela de conversao entre marcas (moto)
+          </button>
+        )}
 
         {temCriterio ? (
           produtosProcessados.length > 0 ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               {produtosProcessados.map((item) => (
-                <ProdutoCard key={item.produto.id} {...item} podeVerEstoque={podeVerEstoque} />
+                <ProdutoCard key={item.produto.id} {...item} podeVerEstoque={podeVerEstoque} prioridade={item.prioridade} isAdmin={userRole === 'admin'} />
               ))}
             </div>
           ) : (

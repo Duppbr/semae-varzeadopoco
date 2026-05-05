@@ -16,8 +16,32 @@ type LogAuditoria = {
   resumo: string;
   detalhes: unknown;
   ip: string | null;
+  userAgent: string | null;
   createdAt: string;
 };
+
+function parseDispositivo(ua: string | null): string {
+  if (!ua) return '';
+  const isMobile = /Mobile|Android|iPhone|iPad/i.test(ua);
+  let os = '';
+  if (/Android/i.test(ua)) { const m = ua.match(/Android ([\d.]+)/); os = m ? `Android ${m[1]}` : 'Android'; }
+  else if (/iPhone/i.test(ua)) os = 'iPhone';
+  else if (/iPad/i.test(ua)) os = 'iPad';
+  else if (/Windows NT 10/i.test(ua)) os = 'Windows 10';
+  else if (/Windows NT 6\.3/i.test(ua)) os = 'Windows 8.1';
+  else if (/Windows NT 6\.1/i.test(ua)) os = 'Windows 7';
+  else if (/Windows/i.test(ua)) os = 'Windows';
+  else if (/Mac OS X/i.test(ua)) os = 'macOS';
+  else if (/Linux/i.test(ua)) os = 'Linux';
+  let browser = '';
+  if (/Edg\//i.test(ua)) browser = 'Edge';
+  else if (/OPR\//i.test(ua)) browser = 'Opera';
+  else if (/Chrome\//i.test(ua)) { const m = ua.match(/Chrome\/([\d]+)/); browser = m ? `Chrome ${m[1]}` : 'Chrome'; }
+  else if (/Firefox\//i.test(ua)) { const m = ua.match(/Firefox\/([\d]+)/); browser = m ? `Firefox ${m[1]}` : 'Firefox'; }
+  else if (/Safari\//i.test(ua)) browser = 'Safari';
+  const tipo = isMobile ? 'Celular' : 'Computador';
+  return [tipo, os, browser].filter(Boolean).join(' · ');
+}
 
 const statusClass: Record<string, string> = {
   sucesso: 'bg-emerald-50 text-emerald-700',
@@ -152,8 +176,13 @@ export default function AdminLogsPage() {
                 <h2 className="font-semibold text-slate-950 mt-2">{log.resumo}</h2>
                 <p className="text-sm text-slate-500 mt-1">
                   {log.usuarioNome || 'Sistema'} {log.usuarioIdentificador ? `(${log.usuarioIdentificador})` : ''}
-                  {log.ip ? ` - IP ${log.ip}` : ''}
                 </p>
+                {(log.ip || log.userAgent) && (
+                  <p className="text-xs text-slate-400 mt-0.5 flex flex-wrap gap-x-3 gap-y-0.5">
+                    {log.ip && <span>IP: {log.ip}</span>}
+                    {parseDispositivo(log.userAgent) && <span>{parseDispositivo(log.userAgent)}</span>}
+                  </p>
+                )}
               </div>
               <time className="text-xs text-slate-500 whitespace-nowrap">
                 {new Date(log.createdAt).toLocaleString('pt-BR')}
