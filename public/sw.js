@@ -1,17 +1,14 @@
-const CACHE = 'rios-baterias-v1';
+const CACHE = 'rios-baterias-v2';
 
+// So cacheia recursos estaticos que nao precisam de autenticacao
 const SHELL = [
-  '/',
-  '/login',
-  '/consulta/1',
-  '/consulta/2',
   '/offline.html',
+  '/consulta-offline.html',
   '/icon-192.png',
   '/icon-512.png',
   '/manifest.json',
 ];
 
-// Instala e cacheia o shell do app
 self.addEventListener('install', event => {
   event.waitUntil(
     caches.open(CACHE).then(c => c.addAll(SHELL)).catch(() => {})
@@ -19,7 +16,6 @@ self.addEventListener('install', event => {
   self.skipWaiting();
 });
 
-// Remove caches antigos
 self.addEventListener('activate', event => {
   event.waitUntil(
     caches.keys().then(keys =>
@@ -35,27 +31,61 @@ self.addEventListener('fetch', event => {
 
   const url = new URL(req.url);
 
-  // APIs: network-first, salva no cache, fallback para cache
+  // APIs: network-first, salva cache, fallback cache offline
   if (url.pathname.startsWith('/api/')) {
     event.respondWith(
-      fetch(req)
+      fetch(req.clone())
         .then(res => {
-          const clone = res.clone();
-          caches.open(CACHE).then(c => c.put(req, clone));
+          if (res.ok) {
+            caches.open(CACHE).then(c => c.put(req, res.clone()));
+          }
           return res;
         })
-        .catch(() => caches.match(req))
+        .catch(() =>
+          caches.match(req).then(cached =>
+            cached || new Response(JSON.stringify({ erro: 'offline' }), {
+              headers: { 'Content-Type': 'application/json' },
+            })
+          )
+        )
     );
     return;
   }
 
-  // Paginas: network-first, salva, fallback cache, ultimo recurso offline.html
+  // Paginas /consulta/*: network-first, salva cache
+  // Se offline, serve cache ou redireciona para consulta-offline.html
+  if (url.pathname.startsWith('/consulta/')) {
+    const lojaId = url.pathname.split('/')[2] || '1';
+    event.respondWith(
+      fetch(req.clone())
+        .then(res => {
+          if (res.ok) {
+            caches.open(CACHE).then(c => c.put(req, res.clone()));
+          }
+          return res;
+        })
+        .catch(() =>
+          caches.match(req).then(cached =>
+            cached ||
+            caches.match('/consulta-offline.html').then(offlinePage => {
+              if (offlinePage) {
+                // Retorna a pagina offline com URL modificada para passar o lojaId
+                return Response.redirect('/consulta-offline.html?loja=' + lojaId, 302);
+              }
+              return caches.match('/offline.html');
+            })
+          )
+        )
+    );
+    return;
+  }
+
+  // Outros recursos: network-first, salva cache, fallback cache ou offline.html
   event.respondWith(
-    fetch(req)
+    fetch(req.clone())
       .then(res => {
         if (res.ok) {
-          const clone = res.clone();
-          caches.open(CACHE).then(c => c.put(req, clone));
+          caches.open(CACHE).then(c => c.put(req, res.clone()));
         }
         return res;
       })

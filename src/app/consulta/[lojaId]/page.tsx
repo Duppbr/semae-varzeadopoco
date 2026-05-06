@@ -53,11 +53,27 @@ export default function ConsultaPage() {
     }
 
     const fetchProdutos = async () => {
-      const res = await fetch(`/api/produtos-loja?lojaId=${lojaId}`);
-      if (res.ok) {
-        const data = (await res.json()) as ProdutoLojaData[];
-        data.sort((a, b) => (b.precoCartao || 0) - (a.precoCartao || 0));
-        setProdutos(data);
+      try {
+        const res = await fetch(`/api/produtos-loja?lojaId=${lojaId}`);
+        if (res.ok) {
+          const data = (await res.json()) as ProdutoLojaData[];
+          data.sort((a, b) => (b.precoCartao || 0) - (a.precoCartao || 0));
+          setProdutos(data);
+          // Salva no cache local para uso offline
+          try {
+            const cache = JSON.parse(localStorage.getItem('rb_cache') || '{}');
+            cache[`loja${lojaId}`] = data;
+            cache.updatedAt = new Date().toISOString();
+            localStorage.setItem('rb_cache', JSON.stringify(cache));
+          } catch { /* ignora se localStorage nao disponivel */ }
+        }
+      } catch {
+        // Offline: tenta usar dados do cache local
+        try {
+          const cache = JSON.parse(localStorage.getItem('rb_cache') || '{}');
+          const cached = cache[`loja${lojaId}`] as ProdutoLojaData[] | undefined;
+          if (cached?.length) setProdutos(cached);
+        } catch { /* sem cache disponivel */ }
       }
       setLoading(false);
     };
