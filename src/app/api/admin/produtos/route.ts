@@ -1,90 +1,111 @@
+import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getSession } from '@/lib/session';
-import { diffCampos, registrarAuditoria } from '@/lib/auditoria';
-import { NextRequest, NextResponse } from 'next/server';
+import { registrarAuditoria } from '@/lib/auditoria';
+import { corsMobile, optionsResponse } from '@/lib/cors-mobile';
 
-const camposAuditados = [
-  'precoCartao',
-  'precoCartao3x',
-  'precoAvista',
-  'precoAvistaMinimo',
-  'quantidadeEstoque',
-  'ativo',
-  'prioridade',
-] as const;
+export async function OPTIONS(req: NextRequest) {
+  return optionsResponse(req);
+}
 
 export async function GET(req: NextRequest) {
   const session = await getSession();
-  if (!session.isLoggedIn || session.role !== 'admin') {
-    return NextResponse.json({ erro: 'Nao autorizado' }, { status: 401 });
+  if (!session.isLoggedIn) {
+    return NextResponse.json({ erro: 'Não autorizado.' }, { status: 401, headers: corsMobile(req) });
+  }
+  if (session.role !== 'admin') {
+    return NextResponse.json({ erro: 'Acesso negado.' }, { status: 403, headers: corsMobile(req) });
   }
 
-  const lojaId = req.nextUrl.searchParams.get('lojaId');
-  if (!lojaId) return NextResponse.json({ erro: 'lojaId obrigatorio' }, { status: 400 });
+  const params = req.nextUrl.searchParams;
+  const ativoParam = params.get('ativo');
 
-  const produtos = await prisma.produtoLoja.findMany({
-    where: { lojaId: parseInt(lojaId) },
-    include: { produto: true },
-    orderBy: { produto: { nome: 'asc' } },
+  const where: { ativo?: boolean } = {};
+  if (ativoParam === 'true') where.ativo = true;
+  if (ativoParam === 'false') where.ativo = false;
+
+  const produtos = await prisma.produto.findMany({
+    where,
+    include: {
+      categoria: { select: { id: true, nome: true, cor: true } },
+      unidade: { select: { id: true, nome: true, abreviacao: true } },
+      estoque: { select: { quantidade: true } },
+    },
+    orderBy: { nome: 'asc' },
   });
 
-  return NextResponse.json(produtos);
+  return NextResponse.json(produtos, { headers: corsMobile(req) });
 }
 
-export async function PUT(req: NextRequest) {
+export async function POST(req: NextRequest) {
   const session = await getSession();
-  if (!session.isLoggedIn || session.role !== 'admin') {
-    return NextResponse.json({ erro: 'Nao autorizado' }, { status: 401 });
+  if (!session.isLoggedIn) {
+    return NextResponse.json({ erro: 'Não autorizado.' }, { status: 401, headers: corsMobile(req) });
+  }
+  if (session.role !== 'admin') {
+    return NextResponse.json({ erro: 'Acesso negado.' }, { status: 403, headers: corsMobile(req) });
   }
 
   const body = await req.json();
-  const { id, precoCartao, precoCartao3x, precoAvista, precoAvistaMinimo, quantidadeEstoque, ativo, prioridade } = body;
-  if (!id) return NextResponse.json({ erro: 'ID obrigatorio' }, { status: 400 });
+  const { nome, categoriaId, unidadeId, estoqueMinimo } = body;
 
-  const antes = await prisma.produtoLoja.findUnique({
-    where: { id },
-    include: { produto: true, loja: true },
-  });
-  if (!antes) return NextResponse.json({ erro: 'Registro nao encontrado' }, { status: 404 });
-
-  const data: Record<string, number | string | boolean | null> = {};
-  if (precoCartao !== undefined) data.precoCartao = precoCartao;
-  if (precoCartao3x !== undefined) data.precoCartao3x = precoCartao3x;
-  if (precoAvista !== undefined) data.precoAvista = precoAvista;
-  if (precoAvistaMinimo !== undefined) data.precoAvistaMinimo = precoAvistaMinimo;
-  if (quantidadeEstoque !== undefined) data.quantidadeEstoque = quantidadeEstoque;
-  if (ativo !== undefined) data.ativo = ativo;
-  if (prioridade !== undefined) data.prioridade = prioridade;
-
-  const updated = await prisma.produtoLoja.update({
-    where: { id },
-    data,
-    include: { produto: true, loja: true },
-  });
-
-  const alteracoes = diffCampos(antes, updated, camposAuditados);
-  if (Object.keys(alteracoes).length > 0) {
-    await registrarAuditoria({
-      req,
-      session,
-      acao: 'produto_loja_atualizado',
-      entidade: 'ProdutoLoja',
-      entidadeId: id,
-      resumo: `${session.nome} alterou ${updated.produto.sku} na loja ${updated.loja.nome}.`,
-      detalhes: {
-        produto: {
-          id: updated.produto.id,
-          sku: updated.produto.sku,
-          nome: updated.produto.nome,
-        },
-        loja: {
-          id: updated.loja.id,
-          nome: updated.loja.nome,
-        },
-        alteracoes,
-      },
-    });
+  if (!nome || !categoriaId || !unidadeId) {
+    return NextResponse.json(
+      { erro: 'Os campos "nome", "categoriaId" e "unidadeId" são obrigatórios.' },
+      { status: 400, headers: corsMobile(req) },
+    );
   }
 
-  return NextResponse.json(updated);
+  const categoriaExiste = await prisma.categoria.findUnique({ where: { id: categoriaId } });
+  if (!categoriaExiste) {
+    return NextResponse.json({ erro: 'Categoria não encontrada.' }, { status: 404, headers: corsMobile(req) });
+  }
+
+  const unidadeExiste = await prisma.unidadeMedida.findUnique({ where: { id: unidadeId } });
+  if (!unidadeExiste) {
+    return NextResponse.json({ erro: 'Unidade de medida não encontrada.' }, { status: 404, headers: corsMobile(req) });
+  }
+
+  const existente = await prisma.produto.findUnique({ where: { nome } });
+  if (existente) {
+    return NextResponse.json(
+      { erro: 'Já existe um produto com esse nome.' },
+      { status: 409, headers: corsMobile(req) },
+    );
+  }
+
+  const produto = await prisma.produto.create({
+    data: {
+      nome,
+      categoriaId,
+      unidadeId,
+      estoqueMinimo: estoqueMinimo !== undefined ? Number(estoqueMinimo) : 0,
+      ativo: true,
+      estoque: {
+        create: { quantidade: 0 },
+      },
+    },
+    include: {
+      categoria: { select: { id: true, nome: true, cor: true } },
+      unidade: { select: { id: true, nome: true, abreviacao: true } },
+      estoque: { select: { quantidade: true } },
+    },
+  });
+
+  await registrarAuditoria({
+    req,
+    session,
+    acao: 'produto_criado',
+    entidade: 'Produto',
+    entidadeId: produto.id,
+    resumo: `${session.nome} criou o produto "${produto.nome}".`,
+    detalhes: {
+      nome: produto.nome,
+      categoriaId: produto.categoriaId,
+      unidadeId: produto.unidadeId,
+      estoqueMinimo: produto.estoqueMinimo,
+    },
+  });
+
+  return NextResponse.json(produto, { status: 201, headers: corsMobile(req) });
 }

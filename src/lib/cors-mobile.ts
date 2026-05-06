@@ -15,7 +15,7 @@ export function corsMobile(req: NextRequest) {
   const permitida = isOrigemPermitida(origin);
   return {
     'Access-Control-Allow-Origin': permitida ? (origin || 'capacitor://localhost') : '',
-    'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+    'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
     'Access-Control-Allow-Headers': 'Content-Type',
     'Access-Control-Allow-Credentials': 'true',
     'Vary': 'Origin',

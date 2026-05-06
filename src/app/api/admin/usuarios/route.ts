@@ -1,61 +1,106 @@
+import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getSession } from '@/lib/session';
 import { registrarAuditoria } from '@/lib/auditoria';
-import { NextRequest, NextResponse } from 'next/server';
+import { corsMobile, optionsResponse } from '@/lib/cors-mobile';
 import bcrypt from 'bcryptjs';
 
-const rolesPermitidas = new Set(['funcionario', 'supervisor', 'admin']);
+const rolesPermitidas = new Set(['admin', 'funcionario']);
 
-export async function GET() {
+export async function OPTIONS(req: NextRequest) {
+  return optionsResponse(req);
+}
+
+export async function GET(req: NextRequest) {
   const session = await getSession();
-  if (!session.isLoggedIn || session.role !== 'admin') {
-    return NextResponse.json({ erro: 'Nao autorizado' }, { status: 401 });
+  if (!session.isLoggedIn) {
+    return NextResponse.json({ erro: 'Não autorizado.' }, { status: 401, headers: corsMobile(req) });
+  }
+  if (session.role !== 'admin') {
+    return NextResponse.json({ erro: 'Acesso negado.' }, { status: 403, headers: corsMobile(req) });
   }
 
   const usuarios = await prisma.usuario.findMany({
-    include: { loja: true },
+    select: {
+      id: true,
+      identificador: true,
+      nome: true,
+      role: true,
+      ativo: true,
+      protegido: true,
+      createdAt: true,
+      updatedAt: true,
+    },
     orderBy: [
       { protegido: 'desc' },
       { ativo: 'desc' },
-      { id: 'asc' },
+      { nome: 'asc' },
     ],
   });
 
-  return NextResponse.json(usuarios);
+  return NextResponse.json(usuarios, { headers: corsMobile(req) });
 }
 
 export async function POST(req: NextRequest) {
   const session = await getSession();
-  if (!session.isLoggedIn || session.role !== 'admin') {
-    return NextResponse.json({ erro: 'Nao autorizado' }, { status: 401 });
+  if (!session.isLoggedIn) {
+    return NextResponse.json({ erro: 'Não autorizado.' }, { status: 401, headers: corsMobile(req) });
+  }
+  if (session.role !== 'admin') {
+    return NextResponse.json({ erro: 'Acesso negado.' }, { status: 403, headers: corsMobile(req) });
   }
 
-  const { identificador, senha, nome, role, lojaId } = await req.json();
-  if (!identificador || !senha || !nome || !role || !lojaId) {
-    return NextResponse.json({ erro: 'Dados incompletos' }, { status: 400 });
+  const body = await req.json();
+  const { identificador, senha, nome, role } = body;
+
+  if (!identificador || !senha || !nome || !role) {
+    return NextResponse.json(
+      { erro: 'Os campos "identificador", "senha", "nome" e "role" são obrigatórios.' },
+      { status: 400, headers: corsMobile(req) },
+    );
   }
+
   if (!rolesPermitidas.has(role)) {
-    return NextResponse.json({ erro: 'Funcao invalida' }, { status: 400 });
+    return NextResponse.json(
+      { erro: 'O campo "role" deve ser "admin" ou "funcionario".' },
+      { status: 400, headers: corsMobile(req) },
+    );
   }
+
   if (String(senha).length < 4) {
-    return NextResponse.json({ erro: 'Senha deve ter pelo menos 4 caracteres' }, { status: 400 });
+    return NextResponse.json(
+      { erro: 'A senha deve ter pelo menos 4 caracteres.' },
+      { status: 400, headers: corsMobile(req) },
+    );
   }
 
   const existente = await prisma.usuario.findUnique({ where: { identificador } });
   if (existente) {
-    return NextResponse.json({ erro: 'ID ja existe' }, { status: 400 });
+    return NextResponse.json(
+      { erro: 'Já existe um usuário com esse identificador.' },
+      { status: 409, headers: corsMobile(req) },
+    );
   }
 
-  const senhaHash = await bcrypt.hash(senha, 10);
+  const senhaHash = await bcrypt.hash(String(senha), 12);
+
   const usuario = await prisma.usuario.create({
     data: {
       identificador,
       senhaHash,
       nome,
       role,
-      lojaId,
       ativo: true,
       protegido: false,
+    },
+    select: {
+      id: true,
+      identificador: true,
+      nome: true,
+      role: true,
+      ativo: true,
+      protegido: true,
+      createdAt: true,
     },
   });
 
@@ -65,111 +110,9 @@ export async function POST(req: NextRequest) {
     acao: 'usuario_criado',
     entidade: 'Usuario',
     entidadeId: usuario.id,
-    resumo: `${session.nome} criou o usuario ${usuario.nome}.`,
-    detalhes: {
-      identificador: usuario.identificador,
-      role: usuario.role,
-      lojaId: usuario.lojaId,
-    },
+    resumo: `${session.nome} criou o usuário "${usuario.nome}" (${usuario.identificador}).`,
+    detalhes: { identificador: usuario.identificador, nome: usuario.nome, role: usuario.role },
   });
 
-  return NextResponse.json(usuario);
-}
-
-export async function PUT(req: NextRequest) {
-  const session = await getSession();
-  if (!session.isLoggedIn || session.role !== 'admin') {
-    return NextResponse.json({ erro: 'Nao autorizado' }, { status: 401 });
-  }
-
-  const { id, ativo } = await req.json();
-  if (!id || typeof ativo !== 'boolean') {
-    return NextResponse.json({ erro: 'ID e status sao obrigatorios' }, { status: 400 });
-  }
-
-  const alvo = await prisma.usuario.findUnique({ where: { id } });
-  if (!alvo) {
-    return NextResponse.json({ erro: 'Usuario nao encontrado' }, { status: 404 });
-  }
-  if (alvo.protegido && ativo === false) {
-    return NextResponse.json({
-      erro: 'Este usuario e o dono protegido do sistema e nao pode ser desativado.',
-    }, { status: 403 });
-  }
-  if (alvo.role === 'admin' && ativo === false) {
-    const outrosAdminsAtivos = await prisma.usuario.count({
-      where: { id: { not: id }, role: 'admin', ativo: true },
-    });
-    if (outrosAdminsAtivos === 0) {
-      return NextResponse.json({
-        erro: 'Nao e possivel desativar o ultimo administrador ativo.',
-      }, { status: 403 });
-    }
-  }
-
-  const usuario = await prisma.usuario.update({
-    where: { id },
-    data: { ativo },
-  });
-
-  await registrarAuditoria({
-    req,
-    session,
-    acao: ativo ? 'usuario_ativado' : 'usuario_desativado',
-    entidade: 'Usuario',
-    entidadeId: id,
-    resumo: `${session.nome} ${ativo ? 'ativou' : 'desativou'} o usuario ${usuario.nome}.`,
-    detalhes: {
-      usuario: { id: usuario.id, identificador: usuario.identificador, nome: usuario.nome, role: usuario.role },
-      protegido: usuario.protegido,
-    },
-  });
-
-  return NextResponse.json(usuario);
-}
-
-// MUDANÇA: rota DELETE para excluir usuário permanentemente.
-// Bloqueia exclusão de usuários protegidos (donos) e do próprio usuário logado.
-// A confirmação visual (digitar o identificador) é feita no frontend — aqui só a lógica de negócio.
-export async function DELETE(req: NextRequest) {
-  const session = await getSession();
-  if (!session.isLoggedIn || session.role !== 'admin') {
-    return NextResponse.json({ erro: 'Nao autorizado' }, { status: 401 });
-  }
-
-  const { id } = await req.json();
-  if (!id) {
-    return NextResponse.json({ erro: 'ID obrigatorio' }, { status: 400 });
-  }
-
-  const alvo = await prisma.usuario.findUnique({ where: { id } });
-  if (!alvo) {
-    return NextResponse.json({ erro: 'Usuario nao encontrado' }, { status: 404 });
-  }
-  if (alvo.protegido) {
-    return NextResponse.json({ erro: 'O usuario dono protegido nao pode ser excluido.' }, { status: 403 });
-  }
-  if (alvo.id === session.userId) {
-    return NextResponse.json({ erro: 'Voce nao pode excluir sua propria conta.' }, { status: 403 });
-  }
-
-  await prisma.usuario.delete({ where: { id } });
-
-  await registrarAuditoria({
-    req,
-    session,
-    acao: 'usuario_excluido',
-    entidade: 'Usuario',
-    entidadeId: id,
-    resumo: `${session.nome} excluiu o usuario ${alvo.nome} (${alvo.identificador}).`,
-    detalhes: {
-      id: alvo.id,
-      identificador: alvo.identificador,
-      nome: alvo.nome,
-      role: alvo.role,
-      lojaId: alvo.lojaId,
-    },
-  });
-
-  return NextResponse.json({ ok: true });
+  return NextResponse.json(usuario, { status: 201, headers: corsMobile(req) });
 }

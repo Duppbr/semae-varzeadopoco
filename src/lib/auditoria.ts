@@ -55,15 +55,10 @@ export async function registrarAuditoria({
 
 export function diffCampos<T extends Record<string, unknown>>(antes: T, depois: T, campos: ReadonlyArray<keyof T>) {
   const alteracoes: Record<string, { antes: unknown; depois: unknown }> = {};
-
   for (const campo of campos) {
     if (antes[campo] !== depois[campo]) {
-      alteracoes[String(campo)] = {
-        antes: antes[campo] ?? null,
-        depois: depois[campo] ?? null,
-      };
+      alteracoes[String(campo)] = { antes: antes[campo] ?? null, depois: depois[campo] ?? null };
     }
   }
-
   return alteracoes;
 }

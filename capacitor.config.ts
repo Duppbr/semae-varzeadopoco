@@ -1,17 +1,17 @@
 import { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
-  appId: 'com.riosbaterias.app',
-  appName: 'Rios Baterias',
+  appId: 'br.gov.varzeadopoco.semae',
+  appName: 'SEMAE',
   webDir: 'mobile',
   server: {
-    // App abre o site completo do Vercel — toda atualização do site reflete automaticamente
-    url: 'https://rios-baterias-teste-delta.vercel.app',
+    // App abre o site completo do Vercel — atualizações automáticas sem republicar APK
+    url: 'https://semae-varzeadopoco.vercel.app',
     cleartext: false,
   },
   android: {
     allowMixedContent: false,
-    backgroundColor: '#ffffff',
+    backgroundColor: '#f1f5f9',
   },
 };
 

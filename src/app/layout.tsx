@@ -1,43 +1,28 @@
-// src/app/layout.tsx
 import type { Metadata } from 'next';
 import './globals.css';
-import Navbar from '@/components/Navbar';
-import ServiceWorkerRegister from '@/components/ServiceWorkerRegister';
 
 export const metadata: Metadata = {
-  title: 'Rios Baterias',
-  description: 'Sistema interno de consulta de baterias',
+  title: 'SEMAE – Alimentação Escolar',
+  description: 'Sistema de controle de estoque e merenda escolar – Várzea do Poço',
   manifest: '/manifest.json',
   icons: {
     icon: [
       { url: '/icon-192.png', sizes: '192x192', type: 'image/png' },
       { url: '/icon-512.png', sizes: '512x512', type: 'image/png' },
     ],
-    shortcut: '/icon-512.png',
-    apple: [
-      { url: '/icon-192.png', sizes: '192x192', type: 'image/png' },
-      { url: '/icon-512.png', sizes: '512x512', type: 'image/png' },
-    ],
+    apple: [{ url: '/icon-192.png', sizes: '192x192', type: 'image/png' }],
   },
   appleWebApp: {
     capable: true,
-    title: 'Rios Baterias',
+    title: 'SEMAE',
     statusBarStyle: 'black-translucent',
   },
 };
 
-export default function RootLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="pt-BR">
-      <body className="bg-gray-100">
-        <ServiceWorkerRegister />
-        <Navbar />
-        {children}
-      </body>
+      <body className="bg-slate-100 min-h-screen">{children}</body>
     </html>
   );
 }

@@ -7,134 +7,205 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model Loja {
-  id        Int           @id @default(autoincrement())
-  nome      String
-  produtos  ProdutoLoja[]
-  tokens    TokenAcesso[]
-  usuarios  Usuario[]
+model Escola {
+  id        String         @id @default(cuid())
+  nome      String         @unique
+  tipo      String         @default("ESCOLA")
+  endereco  String?
+  telefone  String?
+  ativo     Boolean        @default(true)
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+  saidas    Saida[]
+  pedidos   PedidoCompra[]
+}
+
+model Categoria {
+  id       String    @id @default(cuid())
+  nome     String    @unique
+  cor      String    @default("#3B82F6")
+  produtos Produto[]
+}
+
+model UnidadeMedida {
+  id            String         @id @default(cuid())
+  nome          String         @unique
+  abreviacao    String         @unique
+  produtos      Produto[]
+  itensEntrada  ItemEntrada[]
+  itensSaida    ItemSaida[]
+  itensDescarte ItemDescarte[]
+  itensPedido   ItemPedido[]
 }
 
 model Produto {
-  id          Int           @id @default(autoincrement())
-  sku         String        @unique
-  nome        String
-  marca       String
-  categoria   String?
-  amperagem   String?
-  tipo        String?
-  cca         Int?
-  garantia    String?
-  lojas       ProdutoLoja[]
-  createdAt   DateTime      @default(now())
-  updatedAt   DateTime      @updatedAt
+  id            String         @id @default(cuid())
+  nome          String         @unique
+  categoriaId   String
+  unidadeId     String
+  estoqueMinimo Float          @default(0)
+  ativo         Boolean        @default(true)
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  categoria     Categoria      @relation(fields: [categoriaId], references: [id])
+  unidade       UnidadeMedida  @relation(fields: [unidadeId], references: [id])
+  estoque       Estoque?
+  itensEntrada  ItemEntrada[]
+  itensSaida    ItemSaida[]
+  itensDescarte ItemDescarte[]
+  itensPedido   ItemPedido[]
 }
 
-model ProdutoLoja {
-  id                Int      @id @default(autoincrement())
-  produtoId         Int
-  lojaId            Int
-  produto           Produto  @relation(fields: [produtoId], references: [id])
-  loja              Loja     @relation(fields: [lojaId], references: [id])
-  precoCartao       Float?
-  precoCartao3x     Float?
-  precoAvista       Float?
-  precoAvistaMinimo Float?
-  precoSugerido     Float?
-  quantidadeEstoque Int      @default(0)
-  ativo             Boolean  @default(true)
-  prioridade        String   @default("verde")
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
+model Estoque {
+  id         String   @id @default(cuid())
+  produtoId  String   @unique
+  quantidade Float    @default(0)
+  updatedAt  DateTime @updatedAt
+  produto    Produto  @relation(fields: [produtoId], references: [id])
+}
 
-  @@unique([produtoId, lojaId])
+model Responsavel {
+  id        String         @id @default(cuid())
+  nome      String
+  cargo     String?
+  ativo     Boolean        @default(true)
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+  entradas  Entrada[]
+  saidas    Saida[]
+  descartes Descarte[]
+  pedidos   PedidoCompra[]
+}
+
+model Entrada {
+  id            String        @id @default(cuid())
+  numero        Int           @unique @default(autoincrement())
+  data          DateTime
+  responsavelId String?
+  fornecedor    String?
+  observacao    String?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+  responsavel   Responsavel?  @relation(fields: [responsavelId], references: [id])
+  itens         ItemEntrada[]
+}
+
+model ItemEntrada {
+  id          String        @id @default(cuid())
+  entradaId   String
+  produtoId   String
+  quantidade  Float
+  unidadeId   String
+  entrada     Entrada       @relation(fields: [entradaId], references: [id], onDelete: Cascade)
+  produto     Produto       @relation(fields: [produtoId], references: [id])
+  unidade     UnidadeMedida @relation(fields: [unidadeId], references: [id])
+}
+
+model Saida {
+  id            String      @id @default(cuid())
+  numero        Int         @unique @default(autoincrement())
+  data          DateTime
+  escolaId      String
+  responsavelId String?
+  recebedor     String?
+  observacao    String?
+  status        String      @default("PENDENTE")
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+  escola        Escola      @relation(fields: [escolaId], references: [id])
+  responsavel   Responsavel? @relation(fields: [responsavelId], references: [id])
+  itens         ItemSaida[]
+}
+
+model ItemSaida {
+  id          String        @id @default(cuid())
+  saidaId     String
+  produtoId   String
+  quantidade  Float
+  unidadeId   String
+  saida       Saida         @relation(fields: [saidaId], references: [id], onDelete: Cascade)
+  produto     Produto       @relation(fields: [produtoId], references: [id])
+  unidade     UnidadeMedida @relation(fields: [unidadeId], references: [id])
+}
+
+model Descarte {
+  id            String         @id @default(cuid())
+  numero        Int            @unique @default(autoincrement())
+  data          DateTime
+  responsavelId String?
+  motivo        String
+  observacao    String?
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  responsavel   Responsavel?   @relation(fields: [responsavelId], references: [id])
+  itens         ItemDescarte[]
+}
+
+model ItemDescarte {
+  id          String        @id @default(cuid())
+  descarteId  String
+  produtoId   String
+  quantidade  Float
+  unidadeId   String
+  descarte    Descarte      @relation(fields: [descarteId], references: [id], onDelete: Cascade)
+  produto     Produto       @relation(fields: [produtoId], references: [id])
+  unidade     UnidadeMedida @relation(fields: [unidadeId], references: [id])
+}
+
+model PedidoCompra {
+  id            String       @id @default(cuid())
+  numero        Int          @unique @default(autoincrement())
+  data          DateTime
+  escolaId      String?
+  responsavelId String?
+  observacao    String?
+  status        String       @default("RASCUNHO")
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+  escola        Escola?      @relation(fields: [escolaId], references: [id])
+  responsavel   Responsavel? @relation(fields: [responsavelId], references: [id])
+  itens         ItemPedido[]
+}
+
+model ItemPedido {
+  id          String        @id @default(cuid())
+  pedidoId    String
+  produtoId   String
+  quantidade  Float
+  unidadeId   String
+  pedido      PedidoCompra  @relation(fields: [pedidoId], references: [id], onDelete: Cascade)
+  produto     Produto       @relation(fields: [produtoId], references: [id])
+  unidade     UnidadeMedida @relation(fields: [unidadeId], references: [id])
 }
 
 model Usuario {
-  id            Int      @id @default(autoincrement())
-  identificador String   @unique
+  id            String      @id @default(cuid())
+  identificador String      @unique
   senhaHash     String
   nome          String
-  role          String   @default("funcionario")
-  ativo         Boolean  @default(true)
-  protegido     Boolean  @default(false)
-  lojaId        Int
-  loja          Loja     @relation(fields: [lojaId], references: [id])
+  role          String      @default("funcionario")
+  ativo         Boolean     @default(true)
+  protegido     Boolean     @default(false)
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
   auditorias    Auditoria[]
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-}
-
-model TokenAcesso {
-  id        Int      @id @default(autoincrement())
-  token     String   @unique
-  lojaId    Int
-  loja      Loja     @relation(fields: [lojaId], references: [id])
-  descricao String?
-  ativo     Boolean  @default(true)
-  createdAt DateTime @default(now())
-}
-
-model Opcao {
-  id        Int      @id @default(autoincrement())
-  categoria String
-  valor     String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@unique([categoria, valor])
-}
-
-model Atalho {
-  id         Int      @id @default(autoincrement())
-  posicao    Int      @default(0)
-  amperagem  String
-  tipo       String?
-  marca      String?
-  ativo      Boolean  @default(true)
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
-}
-
-model AplicacaoVeiculo {
-  id             String   @id
-  battery        String?
-  carBrand       String?
-  carModel       String?
-  carYearFrom    Int?
-  carYearTo      Int?
-  vehicleType    String?
-  amperagem      String?
-  tipo           String?
-  garantia       String?
-  cca            Float?
-  length         Float?
-  width          Float?
-  height         Float?
-  weight         Float?
-  batteryAlt     String?
-  imageUrl       String?
-  complex        Boolean  @default(false)
-  active         Boolean  @default(true)
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
 }
 
 model Auditoria {
-  id                   Int       @id @default(autoincrement())
-  usuarioId            Int?
-  usuario              Usuario?  @relation(fields: [usuarioId], references: [id], onDelete: SetNull)
+  id                   String   @id @default(cuid())
+  usuarioId            String?
   usuarioNome          String?
   usuarioIdentificador String?
   acao                 String
   entidade             String
   entidadeId           String?
-  status               String    @default("sucesso")
+  status               String   @default("sucesso")
   resumo               String
   detalhes             Json?
   ip                   String?
   userAgent            String?
-  createdAt            DateTime  @default(now())
+  createdAt            DateTime @default(now())
+  usuario              Usuario? @relation(fields: [usuarioId], references: [id], onDelete: SetNull)
 
   @@index([usuarioId])
   @@index([acao])
