@@ -25,8 +25,7 @@ jobs:
       - name: Sincronizar Capacitor
         run: |
           mkdir -p android/app/src/main/assets
-          # webDir: 'mobile' — copia a pasta mobile/ para o APK diretamente
-          # nao e necessario rodar next build para o app mobile
+          # server.url aponta para o Vercel — mobile/ e so um placeholder para o cap sync
           npx cap sync android
 
       - name: Configurar Java 21
