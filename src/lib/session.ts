@@ -18,6 +18,8 @@ export const sessionOptions: SessionOptions = {
   cookieOptions: {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
+    // SameSite=None obrigatório para o app Capacitor (capacitor://localhost → vercel.app)
+    sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
     maxAge: 60 * 60 * 24 * 15, // 15 dias
   },
 };

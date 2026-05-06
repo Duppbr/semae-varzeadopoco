@@ -4,6 +4,21 @@ import bcrypt from 'bcryptjs';
 import { getSession } from '@/lib/session';
 import { registrarAuditoria } from '@/lib/auditoria';
 
+function corsHeaders(req: NextRequest) {
+  const origin = req.headers.get('origin') ?? '';
+  const allowed = ['capacitor://localhost', 'http://localhost:3000'];
+  return {
+    'Access-Control-Allow-Origin': allowed.includes(origin) ? origin : '',
+    'Access-Control-Allow-Methods': 'POST, OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type',
+    'Access-Control-Allow-Credentials': 'true',
+  };
+}
+
+export async function OPTIONS(req: NextRequest) {
+  return new NextResponse(null, { status: 204, headers: corsHeaders(req) });
+}
+
 function parseDispositivo(ua: string | null): string {
   if (!ua) return 'Desconhecido';
   const isMobile = /Mobile|Android|iPhone|iPad/i.test(ua);
@@ -37,7 +52,7 @@ export async function POST(req: NextRequest) {
       resumo: 'Tentativa de login sem ID ou senha.',
       detalhes: { identificador: identificador || null },
     });
-    return NextResponse.json({ erro: 'ID e senha sao obrigatorios' }, { status: 400 });
+    return NextResponse.json({ erro: 'ID e senha sao obrigatorios' }, { status: 400, headers: corsHeaders(req) });
   }
 
   const usuario = await prisma.usuario.findFirst({
@@ -53,7 +68,7 @@ export async function POST(req: NextRequest) {
       resumo: `Login recusado para ID ${identificador}.`,
       detalhes: { identificador, motivo: 'usuario_nao_encontrado_ou_inativo' },
     });
-    return NextResponse.json({ erro: 'Usuario ou senha invalidos' }, { status: 401 });
+    return NextResponse.json({ erro: 'Usuario ou senha invalidos' }, { status: 401, headers: corsHeaders(req) });
   }
 
   const senhaValida = await bcrypt.compare(senha, usuario.senhaHash);
@@ -72,7 +87,7 @@ export async function POST(req: NextRequest) {
       resumo: `Senha incorreta para ${usuario.nome}.`,
       detalhes: { identificador },
     });
-    return NextResponse.json({ erro: 'Usuario ou senha invalidos' }, { status: 401 });
+    return NextResponse.json({ erro: 'Usuario ou senha invalidos' }, { status: 401, headers: corsHeaders(req) });
   }
 
   const session = await getSession();
@@ -101,5 +116,5 @@ export async function POST(req: NextRequest) {
     },
   });
 
-  return NextResponse.json({ ok: true, role: usuario.role, lojaId: usuario.lojaId });
+  return NextResponse.json({ ok: true, role: usuario.role, lojaId: usuario.lojaId, nome: usuario.nome }, { headers: corsHeaders(req) });
 }
