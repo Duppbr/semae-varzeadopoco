@@ -1,6 +1,16 @@
 import { prisma } from '@/lib/prisma';
 import { NextRequest, NextResponse } from 'next/server';
 
+const CORS = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Methods': 'GET, OPTIONS',
+  'Access-Control-Allow-Headers': 'Content-Type',
+};
+
+export async function OPTIONS() {
+  return new NextResponse(null, { status: 204, headers: CORS });
+}
+
 export async function GET(req: NextRequest) {
   const lojaId = req.nextUrl.searchParams.get('lojaId');
   if (!lojaId) {
@@ -37,5 +47,5 @@ export async function GET(req: NextRequest) {
     prioridade: pl.prioridade,
   }));
 
-  return NextResponse.json(formatados);
+  return NextResponse.json(formatados, { headers: CORS });
 }
