@@ -1,25 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/session';
-
-function corsHeaders(req: NextRequest) {
-  const origin = req.headers.get('origin') ?? '';
-  const allowed = ['capacitor://localhost', 'http://localhost:3000'];
-  return {
-    'Access-Control-Allow-Origin': allowed.includes(origin) ? origin : '',
-    'Access-Control-Allow-Methods': 'GET, OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type',
-    'Access-Control-Allow-Credentials': 'true',
-  };
-}
+import { corsMobile, optionsResponse } from '@/lib/cors-mobile';
 
 export async function OPTIONS(req: NextRequest) {
-  return new NextResponse(null, { status: 204, headers: corsHeaders(req) });
+  return optionsResponse(req);
 }
 
 export async function GET(req: NextRequest) {
   const session = await getSession();
   if (!session.isLoggedIn) {
-    return NextResponse.json({ isLoggedIn: false }, { status: 401, headers: corsHeaders(req) });
+    return NextResponse.json({ isLoggedIn: false }, { status: 401, headers: corsMobile(req) });
   }
   return NextResponse.json({
     isLoggedIn: true,
@@ -29,5 +19,5 @@ export async function GET(req: NextRequest) {
     role: session.role,
     lojaId: session.lojaId,
     protegido: session.protegido,
-  }, { headers: corsHeaders(req) });
+  }, { headers: corsMobile(req) });
 }
