@@ -74,10 +74,30 @@ export default async function SaidaPdfPage({ params }: Props) {
         <style dangerouslySetInnerHTML={{ __html: css }} />
       </head>
       <body>
+        <script dangerouslySetInnerHTML={{ __html: `
+          function pdfVoltar() {
+            var url = window.location.pathname;
+            if (url.endsWith('/pdf')) {
+              window.location.href = url.slice(0, -4);
+            } else {
+              window.history.back();
+            }
+          }
+          function pdfImprimir() { window.print(); }
+          function pdfCompartilhar() {
+            if (navigator.share) {
+              navigator.share({ title: document.title, url: window.location.href })
+                .catch(function(e) { if (e.name !== 'AbortError') window.print(); });
+            } else {
+              window.print();
+            }
+          }
+        ` }} />
+
         <div className="action-bar">
-          <button className="back-btn" type="button">← Voltar</button>
-          <button className="share-btn" type="button">📤 Compartilhar</button>
-          <button className="print-btn" type="button">🖨️ Imprimir</button>
+          <button className="back-btn" type="button" onClick="pdfVoltar()">← Voltar</button>
+          <button className="share-btn" type="button" onClick="pdfCompartilhar()">📤 Compartilhar</button>
+          <button className="print-btn" type="button" onClick="pdfImprimir()">🖨️ Imprimir</button>
         </div>
 
         <div className="watermark" />
@@ -170,19 +190,6 @@ export default async function SaidaPdfPage({ params }: Props) {
             </div>
           </div>
         </div>
-
-        <script dangerouslySetInnerHTML={{ __html: `
-          document.querySelector('.back-btn').addEventListener('click', function() {
-            if (window.history.length > 1) { window.history.back(); } else { window.close(); }
-          });
-          document.querySelector('.print-btn').addEventListener('click', function() { window.print(); });
-          document.querySelector('.share-btn').addEventListener('click', async function() {
-            if (navigator.share) {
-              try { await navigator.share({ title: document.title, url: window.location.href }); }
-              catch(e) { if (e.name !== 'AbortError') window.print(); }
-            } else { window.print(); }
-          });
-        ` }} />
       </body>
     </html>
   );
