@@ -2,7 +2,7 @@
 
 **Prefeitura Municipal de Várzea do Poço – BA**
 
-Sistema web + Android para controle de estoque, distribuição para escolas, descartes e pedidos de compra do setor de merenda escolar.
+Sistema web + Android para controle de estoque, distribuição de merenda para escolas, descartes e pedidos de compra.
 
 ---
 
@@ -12,16 +12,18 @@ Sistema web + Android para controle de estoque, distribuição para escolas, des
 2. [Módulos e Rotas](#módulos-e-rotas)
 3. [API REST](#api-rest)
 4. [Banco de Dados](#banco-de-dados)
-5. [Componentes](#componentes)
-6. [Configuração do Ambiente](#configuração-do-ambiente)
-7. [Como Rodar Localmente](#como-rodar-localmente)
-8. [Deploy – Vercel](#deploy--vercel)
-9. [App Android – Capacitor](#app-android--capacitor)
-10. [Build APK – GitHub Actions](#build-apk--github-actions)
-11. [PWA / Offline](#pwa--offline)
-12. [Segurança](#segurança)
-13. [Regras de Negócio](#regras-de-negócio)
-14. [Decisões Técnicas](#decisões-técnicas)
+5. [Componentes e Libs](#componentes-e-libs)
+6. [Documentos PDF](#documentos-pdf)
+7. [Configuração do Ambiente](#configuração-do-ambiente)
+8. [Como Rodar Localmente](#como-rodar-localmente)
+9. [Scripts Utilitários](#scripts-utilitários)
+10. [Deploy – Vercel](#deploy--vercel)
+11. [App Android – Capacitor](#app-android--capacitor)
+12. [Build APK – GitHub Actions](#build-apk--github-actions)
+13. [PWA / Offline](#pwa--offline)
+14. [Segurança](#segurança)
+15. [Regras de Negócio](#regras-de-negócio)
+16. [Decisões Técnicas](#decisões-técnicas)
 
 ---
 
@@ -71,7 +73,7 @@ Sistema web + Android para controle de estoque, distribuição para escolas, des
 | `/pedido-compra/novo` | `src/app/pedido-compra/novo/page.tsx` | Formulário de novo pedido |
 | `/pedido-compra/[id]` | `src/app/pedido-compra/[id]/page.tsx` | Detalhe e edição do pedido |
 | `/pedido-compra/[id]/pdf` | `src/app/pedido-compra/[id]/pdf/page.tsx` | PDF do pedido de compra |
-| `/relatorios` | `src/app/relatorios/page.tsx` | 6 tipos de relatório com filtro de período e exportação |
+| `/relatorios` | `src/app/relatorios/page.tsx` | 6 tipos de relatório com filtro de período |
 
 ### Administração (role `admin`)
 
@@ -89,7 +91,7 @@ Sistema web + Android para controle de estoque, distribuição para escolas, des
 
 ## API REST
 
-Todas as rotas exigem sessão válida (cookie `semae-session`), exceto `/api/auth/login`.  
+Todas as rotas exigem sessão válida (cookie `semae-session`), exceto `/api/auth/login`.
 Respostas com CORS configurado para origens mobile via `src/lib/cors-mobile.ts`.
 
 ### Autenticação
@@ -98,7 +100,7 @@ Respostas com CORS configurado para origens mobile via `src/lib/cors-mobile.ts`.
 |---|---|---|
 | `POST` | `/api/auth/login` | Login: `{ identificador, senha }` → seta cookie de sessão |
 | `POST` | `/api/auth/logout` | Logout: destrói a sessão |
-| `GET` | `/api/auth/me` | Retorna dados da sessão atual: `{ isLoggedIn, id, nome, role, ... }` |
+| `GET` | `/api/auth/me` | Retorna dados da sessão: `{ isLoggedIn, id, nome, role, ... }` |
 
 ### Dashboard
 
@@ -168,16 +170,16 @@ Tipos disponíveis:
 - `movimentacao-periodo` – resumo diário de entradas/saídas/descartes
 - `estoque-atual` – inventário atual por produto
 
-### Cadastros Auxiliares (seletores)
+### Cadastros Auxiliares
 
 | Método | Rota | Descrição |
 |---|---|---|
-| `GET` | `/api/escolas` | Lista escolas ativas (para dropdowns); aceita `?ativo=true` |
+| `GET` | `/api/escolas` | Lista escolas ativas; aceita `?ativo=true` |
 | `GET` | `/api/responsaveis` | Lista responsáveis ativos; aceita `?ativo=true` |
 
 ### Administração (role `admin`)
 
-Todas as rotas abaixo seguem o padrão CRUD completo (GET lista, POST cria, GET/PUT/DELETE por `[id]`):
+CRUD completo (GET lista, POST cria, GET/PUT/DELETE por `[id]`) em:
 
 - `/api/admin/produtos`
 - `/api/admin/escolas`
@@ -190,9 +192,9 @@ Todas as rotas abaixo seguem o padrão CRUD completo (GET lista, POST cria, GET/
 
 ## Banco de Dados
 
-**Provider**: PostgreSQL (Supabase)  
-**ORM**: Prisma 6  
-**Arquivo de schema**: `prisma/schema.prisma`
+**Provider**: PostgreSQL (Supabase)
+**ORM**: Prisma 6
+**Schema**: `prisma/schema.prisma`
 
 ### Modelos
 
@@ -261,25 +263,24 @@ Auditoria       id, usuarioId[SetNull], usuarioNome, usuarioIdentificador, acao,
 
 ### Conexão Supabase
 
-O banco usa o pooler em **modo transação** (porta 6543) para compatibilidade com Vercel serverless:
+Usar o pooler em **modo transação** (porta 6543) — compatível com Vercel serverless:
 
 ```env
 DATABASE_URL="postgresql://postgres.<ref>:<senha>@aws-1-sa-east-1.pooler.supabase.com:6543/postgres?pgbouncer=true&connection_limit=1"
 ```
 
-Não usar a porta 5432 (modo sessão) em produção — esgota o pool de conexões.
+Não usar porta 5432 (modo sessão) em produção — esgota o pool de conexões do free tier.
 
 ---
 
-## Componentes
+## Componentes e Libs
 
 ### `src/components/AppShell.tsx`
 
 Wrapper de layout para todas as páginas autenticadas.
 
-Props: `title`, `backHref?`, `actions?` (botões no header), `noPadding?`, `children`
+Props: `title`, `backHref?`, `actions?`, `noPadding?`, `children`
 
-Inclui:
 - Header fixo com botão voltar, título e ações
 - Logout via `POST /api/auth/logout`
 - `<TabBar />` na parte inferior
@@ -287,7 +288,7 @@ Inclui:
 
 ### `src/components/TabBar.tsx`
 
-Barra de navegação inferior com 4 abas fixas + menu "Mais":
+Barra de navegação inferior com 4 abas fixas + menu "Mais" (bottom sheet).
 
 | Aba | Rota |
 |---|---|
@@ -296,34 +297,115 @@ Barra de navegação inferior com 4 abas fixas + menu "Mais":
 | Entrada | `/entrada` |
 | Estoque | `/estoque` |
 
-Menu "Mais" (bottom sheet): Descarte, Pedido de Compra, Relatórios, Administração.
+Menu "Mais": Descarte, Pedido de Compra, Relatórios, Administração.
 
 ### `src/components/ServiceWorkerRegister.tsx`
 
-Client component que registra `/sw.js` no `navigator.serviceWorker` ao montar. Importado no layout raiz.
+Client component que registra `/sw.js` ao montar. Importado no `src/app/layout.tsx`.
+
+### `src/lib/pdf-actions.ts`
+
+Helper compartilhado para as páginas de PDF. Exporta duas funções:
+
+- **`pdfActionScript(fallbackPath)`** — retorna o JavaScript inline com as funções globais `pdfVoltar()`, `pdfImprimir()` e `pdfCompartilhar()`. A lógica de prioridade é:
+  1. Plugin nativo `window.Capacitor.Plugins.SemaePdf` (APK Android)
+  2. `navigator.share()` (browser moderno)
+  3. Copia o link para a área de transferência como último recurso
+
+- **`pdfActionBarHtml()`** — retorna o HTML dos três botões (← Voltar, 📤 Compartilhar, 🖨️ Imprimir) com atributos `onclick` reais.
+
+---
+
+## Documentos PDF
+
+### Rotas
+
+| Rota | Documento |
+|---|---|
+| `/saida/[id]/pdf` | Controle de Saída de Mercadorias |
+| `/pedido-compra/[id]/pdf` | Pedido de Compra |
+
+Ambas verificam sessão server-side antes de buscar dados. Retornam HTML puro (`<html>…</html>`) — não são componentes React com hidratação.
+
+### Layout modular por quantidade de itens
+
+O PDF de saída adapta fontes e layout conforme o número de itens, garantindo que caiba em uma folha A4 sempre que possível:
+
+| Tier | Itens | Colunas | Fonte linhas | Padding linhas |
+|---|---|---|---|---|
+| T1 | ≤ 12 | 1 coluna | 12 px | 8 px / 12 px (confortável) |
+| T2 | 13 – 20 | 1 coluna | 11 px | 6 px / 10 px |
+| T3 | 21 – 42 | 2 colunas | 10 px | 4 px / 7 px — cabe ~1 folha |
+| T4 | 43+ | 2 colunas | 9 px | 3 px / 6 px — 2 folhas naturalmente |
+
+A coluna de itens usa `flex: 1` dentro de um `.content` em flexbox coluna (`min-height: 228mm`), e as assinaturas usam `margin-top: auto` — ficam sempre na parte inferior da folha independente da quantidade de itens.
+
+### Cabeçalho
+
+O cabeçalho tem três zonas:
+
+```
+[ logo-semae.png ] | SEMAE – Setor Municipal de Alimentação Escolar | [ logo-sec-educacao.jpeg ]
+                   | Prefeitura Municipal de Várzea do Poço – BA    |
+```
+
+Arquivos:
+- `public/logo-semae.png` — logo SEMAE
+- `public/logo-sec-educacao.jpeg` — brasão Várzea do Poço + "Secretaria de Educação"
+
+### Watermark
+
+Logo SEMAE como fundo desbotado (`opacity: 0.04`) posicionada no centro da folha.
+
+### Botões de ação (barra sticky no topo)
+
+```
+← Voltar   |   📤 Compartilhar   |   🖨️ Imprimir
+```
+
+- Barra `position: sticky; top: 0` — sempre visível, nunca sobreposta ao conteúdo
+- Oculta no `@media print`
+- Botões usam `dangerouslySetInnerHTML` com `onclick` HTML puro (ver Decisões Técnicas)
+
+### Plugin nativo Android – `SemaePdfPlugin`
+
+Arquivo: `android/app/src/main/java/com/semae/varzeadopoco/SemaePdfPlugin.java`
+
+| Método | O que faz |
+|---|---|
+| `print(title)` | Chama `WebView.createPrintDocumentAdapter()` + `PrintManager` do Android — abre o diálogo de impressão nativo |
+| `share(title, text, url, dialogTitle)` | Dispara `Intent.ACTION_SEND` — abre o seletor nativo (WhatsApp, Drive, etc.) |
+
+Registrado em `MainActivity.java` via `registerPlugin(SemaePdfPlugin.class)`.
+
+> **Importante:** alterações no plugin exigem novo APK. O Vercel deploy não atualiza código nativo.
+
+### `@page { size: A4 }`
+
+Garante que ao imprimir (desktop ou Android) o papel seja sempre A4 independente do dispositivo.
 
 ---
 
 ## Configuração do Ambiente
 
-Arquivo: `.env.local` (nunca versionar)
+Arquivo `.env.local` (nunca versionar):
 
 ```env
 # Supabase – pooler modo transação (porta 6543)
 DATABASE_URL="postgresql://postgres.<ref>:<senha>@aws-1-sa-east-1.pooler.supabase.com:6543/postgres?pgbouncer=true&connection_limit=1"
 
-# Mínimo 32 caracteres – usado pelo iron-session
+# Mínimo 32 caracteres – iron-session
 SECRET_COOKIE_PASSWORD="gere-um-segredo-aleatorio-com-32-chars"
 ```
 
-Variáveis opcionais (seed e CORS mobile):
+Opcionais:
 
 ```env
-ADMIN_SEED_PASSWORD="senha-forte-para-usuario-admin-inicial"
+ADMIN_SEED_PASSWORD="senha-forte-para-o-admin-inicial"
 ALLOWED_MOBILE_ORIGINS="https://semae-varzeadopoco.vercel.app"
 ```
 
-As mesmas variáveis devem ser configuradas no painel do Vercel em **Settings → Environment Variables**.
+As mesmas variáveis devem estar no painel do Vercel em **Settings → Environment Variables**.
 
 ---
 
@@ -334,9 +416,9 @@ npm install
 npm run dev
 ```
 
-Acesse: `http://localhost:3000`
+Acesse `http://localhost:3000`.
 
-O usuário `admin` é criado via seed. Para popular o banco com dados iniciais:
+Para popular o banco com dados iniciais (produtos, escolas, responsável, admin):
 
 ```bash
 ADMIN_SEED_PASSWORD="sua-senha" npx prisma db seed
@@ -350,20 +432,53 @@ npx prisma generate
 
 ---
 
+## Scripts Utilitários
+
+Ficam em `scripts/`. Rodar sempre com `--env-file=.env.local`:
+
+### `gerar-icones.js`
+
+Gera todos os ícones Android (todas as densidades) a partir de `public/semae-original.jpeg`.
+
+```bash
+node scripts/gerar-icones.js
+```
+
+Gera `ic_launcher.png`, `ic_launcher_round.png` e `ic_launcher_foreground.png` para mdpi / hdpi / xhdpi / xxhdpi / xxxhdpi.
+
+### `gerar-pdf-teste.mjs`
+
+Cria três saídas de teste no banco e abre os HTML gerados no navegador:
+
+```bash
+node --env-file=.env.local scripts/gerar-pdf-teste.mjs
+```
+
+| Cenário | Itens | Qtd cada | Layout esperado |
+|---|---|---|---|
+| 10 produtos | 10 | 5 | T1 – 1 coluna confortável |
+| 30 produtos | 30 | 12 | T3 – 2 colunas, ~1 folha |
+| Todos (38) | 38 | 25 | T3 – 2 colunas, ~1 folha |
+
+> Os arquivos HTML ficam em `scripts/pdf-cenario-*.html` e podem ser abertos direto no navegador para impressão de teste.
+
+---
+
 ## Deploy – Vercel
 
-O projeto está conectado ao repositório `Duppbr/semae-varzeadopoco` no GitHub. Todo push para `main` dispara um deploy automático.
-
-**Comando de build** configurado no `package.json`:
+Repositório conectado: `Duppbr/semae-varzeadopoco`. Push para `main` dispara deploy automático.
 
 ```bash
 npm run vercel-build
 # executa: npx prisma generate && next build
 ```
 
-O seed **não** roda automaticamente no deploy. Migrations devem ser aplicadas manualmente via Supabase ou CLI do Prisma antes de cada alteração de schema.
+O seed **não** roda no deploy. Migrations devem ser aplicadas manualmente no Supabase.
 
 **URL de produção**: `https://semae-varzeadopoco.vercel.app`
+
+> Alterações em páginas web (layout, API, lógica) vão ao ar via Vercel sem precisar de novo APK.
+> Apenas mudanças nativas (plugins Java, ícones, permissões Android) exigem rebuild do APK.
 
 ---
 
@@ -374,92 +489,79 @@ O seed **não** roda automaticamente no deploy. Migrations devem ser aplicadas m
 ```ts
 appId:   'com.semae.varzeadopoco'
 appName: 'SEMAE'
-webDir:  'mobile'           // placeholder local
+webDir:  'mobile'
 server:  {
   url:       'https://semae-varzeadopoco.vercel.app',
   cleartext: false
 }
 ```
 
-O APK carrega o site do Vercel diretamente via WebView — sem necessidade de rebuild do APK para atualizar conteúdo web.
+O APK carrega o site do Vercel via WebView — sem rebuild para atualizar conteúdo web.
 
-### Como sincronizar e abrir no Android Studio
+### Sincronizar com Android Studio
 
 ```bash
 npx cap sync android
 npx cap open android
 ```
 
-### Ícones Android
+### Ícones
 
-Os ícones adaptativos (Android 8+) ficam em:
+Ícones adaptativos (Android 8+) em `android/app/src/main/res/mipmap-*/`:
 
-```
-android/app/src/main/res/
-  mipmap-mdpi/    ic_launcher.png, ic_launcher_round.png, ic_launcher_foreground.png
-  mipmap-hdpi/    ...
-  mipmap-xhdpi/   ...
-  mipmap-xxhdpi/  ...
-  mipmap-xxxhdpi/ ...
-```
+- `ic_launcher_foreground.png` — camada frontal do ícone adaptativo (o que aparece no launcher)
+- `ic_launcher.png` — ícone legado (Android < 8)
+- `ic_launcher_round.png` — variante circular legada
 
-`ic_launcher_foreground.png` é o que o Android 8+ usa (ícone adaptativo). As outras densidades são para legado.
+XML adaptativo: `android/app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml`
 
-O XML adaptativo fica em `android/app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml`.
-
-Para regenerar todos os ícones a partir de `semae-original.jpeg`:
+Para regenerar a partir de `public/semae-original.jpeg`:
 
 ```bash
 node scripts/gerar-icones.js
 ```
 
-### PDF no app Android
-
-As páginas de PDF (`/saida/[id]/pdf` e `/pedido-compra/[id]/pdf`) têm uma barra de ações sticky no topo com três botões:
-
-- **← Voltar** – navega para a rota pai (remove `/pdf` da URL)
-- **📤 Compartilhar** – no APK usa o plugin nativo `SemaePdf.share()`; no navegador usa fallback web
-- **🖨️ Imprimir** – no APK usa o `PrintManager` nativo via `SemaePdf.print()`; no desktop abre `window.print()`
-
-Importante: `window.print()` **não funciona** no WebView do Capacitor. Para Android, a solução atual é o plugin nativo local `SemaePdf`.
-
-Os botões usam `dangerouslySetInnerHTML` com atributos `onclick` HTML puros — `onClick` do React não funciona em páginas que retornam `<html>` diretamente sem hidratação.
-
 ---
 
 ## Build APK – GitHub Actions
 
-**Arquivo**: `.github/workflows/build-apk.yml`  
-**Trigger**: push para `main` do repositório `semae-varzeadopoco` ou dispatch manual
+**Workflow**: `.github/workflows/build-apk.yml`
+**Trigger**: push para `main` no repositório `semae-varzeadopoco` ou dispatch manual
 
 Etapas:
-1. Checkout do código
+1. Checkout
 2. Node.js 22 + npm cache
 3. `npm ci`
-4. `npx cap sync android` (cria `android/app/src/main/assets/`)
+4. `npx cap sync android`
 5. Java 21 (Temurin)
 6. Android SDK
 7. `chmod +x android/gradlew`
 8. `./gradlew assembleDebug --no-daemon`
 9. Upload do artefato `SEMAE-debug-{run_number}` (retido 90 dias)
 
-O APK gerado fica em `android/app/build/outputs/apk/debug/app-debug.apk`.
+APK gerado em: `android/app/build/outputs/apk/debug/app-debug.apk`
 
-> Para gerar um APK de release assinado seria necessário configurar uma keystore como secret no GitHub.
+Para build local (requer Android Studio instalado):
+
+```powershell
+$env:JAVA_HOME  = "C:\Program Files\Android\Android Studio\jbr"
+$env:ANDROID_HOME = "C:\Users\Duppbr\AppData\Local\Android\Sdk"
+npx cap sync android
+.\android\gradlew.bat -p android assembleDebug --no-daemon
+```
 
 ---
 
 ## PWA / Offline
 
-**Service worker**: `public/sw.js`  
-**Cache**: `semae-v1`  
+**Service worker**: `public/sw.js`
+**Cache**: `semae-v1`
 **Manifest**: `public/manifest.json`
 
-Comportamento:
-- Pré-cacheia os assets shell ao instalar
-- Requisições a `/api/*` **não** são cacheadas (retornam 503 offline)
-- Páginas não cacheadas retornam `public/offline.html`
-- Instalável como PWA (display: standalone, theme: #1e3a5f)
+- Pré-cacheia assets shell na instalação
+- Rotas `/api/*` **não** são cacheadas (retornam 503 offline)
+- Páginas sem cache retornam `public/offline.html`
+- Instalável como PWA (display: standalone, theme: `#1e3a5f`)
 
 Registro: `src/components/ServiceWorkerRegister.tsx` importado no `src/app/layout.tsx`.
 
@@ -467,13 +569,13 @@ Registro: `src/components/ServiceWorkerRegister.tsx` importado no `src/app/layou
 
 ## Segurança
 
-- **Sessão**: cookie HTTP-only, `sameSite: none` em produção, `sameSite: lax` em desenvolvimento, `maxAge`: 15 dias
-- **Senhas**: bcrypt com salt automático
-- **SECRET_COOKIE_PASSWORD**: validado com mínimo de 32 caracteres em runtime
+- **Sessão**: cookie HTTP-only, `sameSite: none` em produção, `sameSite: lax` em dev, `maxAge`: 15 dias
+- **Senhas**: bcrypt (salt automático via bcryptjs)
+- **SECRET_COOKIE_PASSWORD**: mínimo 32 caracteres validado em runtime dentro de `getSession()`
 - **Autenticação**: verificada em todas as rotas API e nas páginas PDF server-side
 - **Role**: `funcionario` (acesso padrão) e `admin` (acesso a `/admin/*`)
-- **Auditoria**: toda criação, edição e exclusão gera registro na tabela `Auditoria` com usuário, IP, user-agent e resumo da ação
-- **Usuário protegido**: campo `protegido: true` impede exclusão/desativação via API do usuário admin principal
+- **Auditoria**: toda criação, edição e exclusão gera registro em `Auditoria` com usuário, IP, user-agent e resumo
+- **Usuário protegido**: `protegido: true` impede exclusão/desativação do admin principal via API
 
 ---
 
@@ -481,12 +583,13 @@ Registro: `src/components/ServiceWorkerRegister.tsx` importado no `src/app/layou
 
 | Regra | Descrição |
 |---|---|
-| Estoque negativo permitido | Saídas e descartes podem deixar estoque negativo. Não bloqueia o fluxo — representa entregas emergenciais ou ajustes posteriores |
-| Numeração automática | `Entrada`, `Saida`, `Descarte` e `PedidoCompra` têm campo `numero` autoincremental único |
-| Status de Saída | Inicia em `PENDENTE`. Pode ser atualizado para `ENTREGUE` ou `CANCELADO` |
-| Status de Pedido | Fluxo: `RASCUNHO` → `ENVIADO` → `ATENDIDO` (ou `CANCELADO` em qualquer etapa) |
-| Itens em cascata | Ao excluir uma movimentação, seus itens são removidos automaticamente (`onDelete: Cascade`) |
-| Estoque mínimo | Campo `estoqueMinimo` no Produto. Dashboard alerta quando `estoque.quantidade <= estoqueMinimo` |
+| Estoque negativo permitido | Saídas e descartes podem deixar estoque negativo — representa entregas emergenciais ou ajustes posteriores. Não bloqueia o fluxo. |
+| Numeração automática | `Entrada`, `Saida`, `Descarte` e `PedidoCompra` têm `numero` autoincremental único |
+| Status de Saída | Inicia em `PENDENTE`. Atualiza para `ENTREGUE` ou `CANCELADO` |
+| Status de Pedido | `RASCUNHO` → `ENVIADO` → `ATENDIDO` (ou `CANCELADO` em qualquer etapa) |
+| Itens em cascata | Excluir uma movimentação remove seus itens automaticamente (`onDelete: Cascade`) |
+| Estoque mínimo | `estoqueMinimo` no Produto. Dashboard alerta quando `quantidade <= estoqueMinimo` |
+| Itens do PDF ordenados | Na rota PDF, `itens` são sempre ordenados alfabeticamente por nome de produto |
 
 ---
 
@@ -494,37 +597,14 @@ Registro: `src/components/ServiceWorkerRegister.tsx` importado no `src/app/layou
 
 | Decisão | Motivo |
 |---|---|
-| `serverExternalPackages: ['@prisma/client', '.prisma/client']` no `next.config.ts` | Turbopack resolvia `.prisma/client` com a condição `browser`, carregando `index-browser.js` ao invés do cliente server. Isso causava "Prisma Client not initialized" em dev |
-| Validação do `SECRET_COOKIE_PASSWORD` dentro de `getSession()` | Colocar no nível de módulo causava crash imediato da função serverless no Vercel (body vazio na resposta) |
-| Porta 6543 (pooler transação) para DATABASE_URL | Vercel serverless abre conexão por invocação. Modo sessão (5432) esgota o pool do Supabase free tier |
-| `dangerouslySetInnerHTML` nos botões do PDF | Páginas PDF retornam `<html>` diretamente sem hidratação React. O prop `onClick` do React não vira atributo `onclick` HTML nessas páginas |
-| Plugin nativo `SemaePdf` no lugar de depender de `window.print()`/`navigator.share()` no Android | O WebView do Capacitor não garante impressão nem compartilhamento via APIs web |
-| APK aponta para Vercel via `server.url` | Atualizações do sistema não exigem novo APK. Apenas alterações nativas (permissões, plugins) precisam de rebuild |
-| Estoque negativo não bloqueia | Decisão operacional: registros emergenciais e ajustes manuais posteriores devem ser possíveis sem travar o fluxo |
----
-
-## Correcao Aplicada Em 08/05/2026 - PDF No Android
-
-Problema observado: no APK Android, os botoes **Compartilhar** e **Imprimir** apareciam nas paginas de PDF, mas nao acionavam o seletor nativo nem a impressao.
-
-Causa tecnica:
-- As rotas de PDF sao HTML com CSS de impressao, nao arquivos `.pdf` binarios.
-- `window.print()` nao abre o dialogo de impressao dentro do WebView do Capacitor.
-- `navigator.share()` pode nao estar disponivel ou pode falhar silenciosamente dentro do WebView.
-
-Solucao aplicada:
-- Criado o plugin Android local `android/app/src/main/java/com/semae/varzeadopoco/SemaePdfPlugin.java`.
-- Registrado o plugin no `android/app/src/main/java/com/semae/varzeadopoco/MainActivity.java`.
-- `SemaePdf.print()` chama o `PrintManager` nativo do Android usando `WebView.createPrintDocumentAdapter()`.
-- `SemaePdf.share()` abre o chooser nativo do Android com `Intent.ACTION_SEND`.
-- Criado o helper compartilhado `src/lib/pdf-actions.ts`.
-- Atualizadas as rotas `src/app/saida/[id]/pdf/page.tsx` e `src/app/pedido-compra/[id]/pdf/page.tsx`.
-
-Validacao:
-- `npm run build` passou.
-- `npx cap sync android` passou.
-- `./android/gradlew.bat -p android assembleDebug --no-daemon` passou usando:
-  - `JAVA_HOME=C:\Program Files\Android\Android Studio\jbr`
-  - `ANDROID_HOME=C:\Users\Duppbr\AppData\Local\Android\Sdk`
-
-Importante: por envolver plugin nativo, a impressao Android so funcionara apos gerar e instalar um novo APK. Apenas redeploy no Vercel atualiza o HTML, mas nao adiciona o plugin nativo ao APK antigo.
+| `serverExternalPackages: ['@prisma/client', '.prisma/client']` no `next.config.ts` | Turbopack resolvia `.prisma/client` com condição `browser`, carregando `index-browser.js` — causava "Prisma Client not initialized" em dev |
+| Validação do `SECRET_COOKIE_PASSWORD` dentro de `getSession()` | No nível de módulo causava crash imediato da função serverless no Vercel (response body vazio) |
+| Porta 6543 (pooler transação) no `DATABASE_URL` | Vercel abre conexão por invocação. Modo sessão (5432) esgota o pool do Supabase free tier |
+| `dangerouslySetInnerHTML` nos botões do PDF | Páginas PDF retornam `<html>` diretamente sem hidratação React. `onClick="string"` em JSX não vira atributo `onclick` HTML — React silenciosamente ignora strings em event handlers |
+| Botão Voltar navega por URL (remove `/pdf`) em vez de `history.back()` | `history.back()` falha no Capacitor quando o PDF é a primeira página carregada; navegar por URL é mais confiável |
+| Plugin nativo `SemaePdfPlugin` para imprimir/compartilhar no Android | `window.print()` é silencioso no WebView do Capacitor; `navigator.share()` pode falhar; o plugin usa as APIs nativas reais do Android (`PrintManager`, `Intent.ACTION_SEND`) |
+| Layout modular em 4 tiers no PDF | Documentos com poucos itens precisam de fonte maior para leitura confortável em campo; documentos com muitos itens precisam caber em 1 folha A4. Threshold de duas colunas: 21 itens |
+| Assinaturas com `margin-top: auto` em flex column | Garante que as assinaturas fiquem sempre no fundo da folha independente da quantidade de itens — documento visualmente uniforme |
+| APK aponta para Vercel via `server.url` | Atualizações de conteúdo web vão ao ar sem rebuild. Rebuild só necessário para mudanças nativas |
+| Sem rebuild de APK para mudanças de layout/API | Política adotada para agilidade: push para `semae/main` publica no Vercel; APK só é rebuilt quando há mudança nativa (plugin, ícones, permissões) |
+| Estoque negativo não bloqueia | Decisão operacional: registros emergenciais e ajustes posteriores devem ser possíveis sem travar o fluxo |
