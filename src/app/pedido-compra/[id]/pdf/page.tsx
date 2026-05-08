@@ -69,10 +69,12 @@ export default async function PedidoCompraPdfPage({ params }: Props) {
           .sig-box p { font-size: 11px; color: #475569; }
           .sig-box strong { display: block; font-size: 12px; color: #1e293b; }
           .footer { border-top: 1px solid #e2e8f0; padding-top: 12px; margin-top: 20px; text-align: center; font-size: 10px; color: #94a3b8; }
-          .print-btn { position: fixed; top: 16px; right: 16px; background: #4c1d95; color: white; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer; font-size: 13px; font-weight: 600; display: flex; align-items: center; gap: 6px; z-index: 999; }
+          .action-bar { position: fixed; top: 16px; right: 16px; display: flex; gap: 8px; z-index: 999; }
+          .print-btn { background: #4c1d95; color: white; border: none; padding: 10px 16px; border-radius: 8px; cursor: pointer; font-size: 13px; font-weight: 600; }
+          .share-btn { background: #f97316; color: white; border: none; padding: 10px 16px; border-radius: 8px; cursor: pointer; font-size: 13px; font-weight: 600; }
           .status-badge { display: inline-block; padding: 2px 10px; border-radius: 20px; font-size: 11px; font-weight: 600; background: #ede9fe; color: #4c1d95; margin-left: 8px; }
           @media print {
-            .print-btn { display: none !important; }
+            .action-bar { display: none !important; }
             body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
           }
         `}</style>
@@ -190,10 +192,19 @@ export default async function PedidoCompraPdfPage({ params }: Props) {
           </div>
         </div>
 
-        <button className="print-btn" onClick={() => window.print()}>
-          🖨️ Imprimir / Salvar PDF
-        </button>
-        <script dangerouslySetInnerHTML={{ __html: 'window.addEventListener("load", () => {})' }} />
+        <div className="action-bar">
+          <button className="share-btn" type="button">📤 Compartilhar</button>
+          <button className="print-btn" type="button">🖨️ Imprimir</button>
+        </div>
+        <script dangerouslySetInnerHTML={{ __html: `
+          document.querySelector('.print-btn').addEventListener('click',function(){window.print();});
+          document.querySelector('.share-btn').addEventListener('click',async function(){
+            if(navigator.share){
+              try{await navigator.share({title:document.title,url:window.location.href});}
+              catch(e){if(e.name!=='AbortError')window.print();}
+            } else { window.print(); }
+          });
+        ` }} />
       </body>
     </html>
   );

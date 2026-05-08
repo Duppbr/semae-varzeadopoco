@@ -35,7 +35,7 @@ export default function NovaSaidaPage() {
   }, []);
 
   const produtosFiltrados = produtos.filter(p =>
-    busca.length >= 2 && p.nome.toLowerCase().includes(busca.toLowerCase()) && !itens.find(i => i.produtoId === p.id)
+    p.nome.toLowerCase().includes(busca.toLowerCase()) && !itens.find(i => i.produtoId === p.id)
   );
 
   const adicionarProduto = (p: Produto) => {
@@ -44,7 +44,7 @@ export default function NovaSaidaPage() {
       unidadeId: p.unidade.id, unidadeAbrev: p.unidade.abreviacao,
       estoqueAtual: p.estoque?.quantidade ?? 0, quantidade: '',
     }]);
-    setBusca(''); setMostrarBusca(false);
+    setBusca('');
   };
 
   const removerItem = (idx: number) => setItens(prev => prev.filter((_, i) => i !== idx));
@@ -132,20 +132,21 @@ export default function NovaSaidaPage() {
                   placeholder="Buscar produto..." autoFocus
                   className="w-full pl-9 pr-4 py-3 border border-slate-200 rounded-xl bg-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-500 text-slate-900" />
               </div>
-              {busca.length >= 2 && (
-                <div className="mt-2 border border-slate-200 rounded-xl overflow-hidden max-h-52 overflow-y-auto">
-                  {produtosFiltrados.length === 0 ? (
-                    <p className="p-3 text-sm text-slate-500 text-center">Nenhum produto encontrado</p>
-                  ) : produtosFiltrados.map(p => (
-                    <button key={p.id} onClick={() => adicionarProduto(p)}
-                      className="w-full text-left px-4 py-3 hover:bg-orange-50 active:bg-orange-100 border-b border-slate-100 last:border-0">
+              <div className="mt-2 border border-slate-200 rounded-xl overflow-hidden max-h-64 overflow-y-auto">
+                {produtosFiltrados.length === 0 ? (
+                  <p className="p-3 text-sm text-slate-500 text-center">Nenhum produto encontrado</p>
+                ) : produtosFiltrados.map(p => (
+                  <button key={p.id} onClick={() => adicionarProduto(p)}
+                    className="w-full text-left px-4 py-3 hover:bg-orange-50 active:bg-orange-100 border-b border-slate-100 last:border-0 flex items-center gap-3">
+                    <div className="flex-1 min-w-0">
                       <p className="font-medium text-slate-900 text-sm">{p.nome}</p>
                       <p className="text-xs text-slate-500">{p.categoria.nome} · Estoque: {p.estoque?.quantidade?.toFixed(1) ?? 0} {p.unidade.abreviacao}</p>
-                    </button>
-                  ))}
-                </div>
-              )}
-              <button onClick={() => { setMostrarBusca(false); setBusca(''); }} className="mt-2 text-sm text-slate-500 underline">Cancelar busca</button>
+                    </div>
+                    <span className="text-orange-500 font-bold text-lg shrink-0">+</span>
+                  </button>
+                ))}
+              </div>
+              <button onClick={() => { setMostrarBusca(false); setBusca(''); }} className="mt-2 text-sm text-slate-500 underline">Concluir seleção</button>
             </div>
           )}
 

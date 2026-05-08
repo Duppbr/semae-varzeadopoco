@@ -52,8 +52,10 @@ export default async function SaidaPdfPage({ params }: Props) {
     .sig-box p { font-size: 11px; color: #475569; }
     .sig-box strong { display: block; font-size: 12px; color: #1e293b; }
     .footer { border-top: 1px solid #e2e8f0; padding-top: 12px; margin-top: 20px; text-align: center; font-size: 10px; color: #94a3b8; }
-    .print-btn { position: fixed; top: 16px; right: 16px; background: #1e3a5f; color: white; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer; font-size: 13px; font-weight: 600; z-index: 999; }
-    @media print { .print-btn { display: none !important; } body { -webkit-print-color-adjust: exact; print-color-adjust: exact; } }
+    .action-bar { position: fixed; top: 16px; right: 16px; display: flex; gap: 8px; z-index: 999; }
+    .print-btn { background: #1e3a5f; color: white; border: none; padding: 10px 16px; border-radius: 8px; cursor: pointer; font-size: 13px; font-weight: 600; }
+    .share-btn { background: #f97316; color: white; border: none; padding: 10px 16px; border-radius: 8px; cursor: pointer; font-size: 13px; font-weight: 600; }
+    @media print { .action-bar { display: none !important; } body { -webkit-print-color-adjust: exact; print-color-adjust: exact; } }
   `;
 
   return (
@@ -156,8 +158,19 @@ export default async function SaidaPdfPage({ params }: Props) {
           </div>
         </div>
 
-        <button className="print-btn" type="button">🖨️ Imprimir / Salvar PDF</button>
-        <script dangerouslySetInnerHTML={{ __html: `document.querySelector('.print-btn').addEventListener('click',function(){window.print();});` }} />
+        <div className="action-bar">
+          <button className="share-btn" type="button">📤 Compartilhar</button>
+          <button className="print-btn" type="button">🖨️ Imprimir</button>
+        </div>
+        <script dangerouslySetInnerHTML={{ __html: `
+          document.querySelector('.print-btn').addEventListener('click',function(){window.print();});
+          document.querySelector('.share-btn').addEventListener('click',async function(){
+            if(navigator.share){
+              try{await navigator.share({title:document.title,url:window.location.href});}
+              catch(e){if(e.name!=='AbortError')window.print();}
+            } else { window.print(); }
+          });
+        ` }} />
       </body>
     </html>
   );
