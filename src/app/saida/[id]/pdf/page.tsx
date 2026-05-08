@@ -22,9 +22,14 @@ export default async function SaidaPdfPage({ params }: Props) {
   const fmtData = (d: Date) => d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' });
 
   const css = `
+    @page { size: A4; margin: 1cm; }
     * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { font-family: Arial, sans-serif; background: white; color: #1e293b; font-size: 12px; }
-    .page { max-width: 800px; margin: 0 auto; padding: 32px; position: relative; }
+    body { font-family: Arial, sans-serif; background: #f1f5f9; color: #1e293b; font-size: 12px; }
+    .action-bar { display: flex; gap: 8px; padding: 12px 16px; background: #fff; border-bottom: 1px solid #e2e8f0; position: sticky; top: 0; z-index: 100; }
+    .back-btn { background: #64748b; color: white; border: none; padding: 10px 16px; border-radius: 8px; cursor: pointer; font-size: 13px; font-weight: 600; -webkit-tap-highlight-color: rgba(0,0,0,0.1); }
+    .share-btn { background: #f97316; color: white; border: none; padding: 10px 16px; border-radius: 8px; cursor: pointer; font-size: 13px; font-weight: 600; -webkit-tap-highlight-color: rgba(0,0,0,0.1); }
+    .print-btn { background: #1e3a5f; color: white; border: none; padding: 10px 16px; border-radius: 8px; cursor: pointer; font-size: 13px; font-weight: 600; -webkit-tap-highlight-color: rgba(0,0,0,0.1); }
+    .page { max-width: 800px; margin: 24px auto; padding: 32px; background: white; position: relative; border-radius: 8px; box-shadow: 0 1px 8px rgba(0,0,0,0.08); }
     .watermark { position: fixed; top: 50%; left: 50%; transform: translate(-50%,-50%); width: 320px; height: 320px; background-image: url('/logo-semae.png'); background-size: contain; background-repeat: no-repeat; background-position: center; opacity: 0.05; z-index: 0; pointer-events: none; }
     .content { position: relative; z-index: 1; }
     .header { display: flex; align-items: center; gap: 16px; border-bottom: 2px solid #1e3a5f; padding-bottom: 16px; margin-bottom: 20px; }
@@ -52,10 +57,12 @@ export default async function SaidaPdfPage({ params }: Props) {
     .sig-box p { font-size: 11px; color: #475569; }
     .sig-box strong { display: block; font-size: 12px; color: #1e293b; }
     .footer { border-top: 1px solid #e2e8f0; padding-top: 12px; margin-top: 20px; text-align: center; font-size: 10px; color: #94a3b8; }
-    .action-bar { position: fixed; top: 16px; right: 16px; display: flex; gap: 8px; z-index: 999; }
-    .print-btn { background: #1e3a5f; color: white; border: none; padding: 10px 16px; border-radius: 8px; cursor: pointer; font-size: 13px; font-weight: 600; }
-    .share-btn { background: #f97316; color: white; border: none; padding: 10px 16px; border-radius: 8px; cursor: pointer; font-size: 13px; font-weight: 600; }
-    @media print { .action-bar { display: none !important; } body { -webkit-print-color-adjust: exact; print-color-adjust: exact; } }
+    @media print {
+      .action-bar { display: none !important; }
+      body { background: white; }
+      .page { margin: 0; padding: 0; box-shadow: none; border-radius: 0; max-width: 100%; }
+      body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    }
   `;
 
   return (
@@ -67,6 +74,12 @@ export default async function SaidaPdfPage({ params }: Props) {
         <style dangerouslySetInnerHTML={{ __html: css }} />
       </head>
       <body>
+        <div className="action-bar">
+          <button className="back-btn" type="button">← Voltar</button>
+          <button className="share-btn" type="button">📤 Compartilhar</button>
+          <button className="print-btn" type="button">🖨️ Imprimir</button>
+        </div>
+
         <div className="watermark" />
         <div className="page">
           <div className="content">
@@ -158,16 +171,15 @@ export default async function SaidaPdfPage({ params }: Props) {
           </div>
         </div>
 
-        <div className="action-bar">
-          <button className="share-btn" type="button">📤 Compartilhar</button>
-          <button className="print-btn" type="button">🖨️ Imprimir</button>
-        </div>
         <script dangerouslySetInnerHTML={{ __html: `
-          document.querySelector('.print-btn').addEventListener('click',function(){window.print();});
-          document.querySelector('.share-btn').addEventListener('click',async function(){
-            if(navigator.share){
-              try{await navigator.share({title:document.title,url:window.location.href});}
-              catch(e){if(e.name!=='AbortError')window.print();}
+          document.querySelector('.back-btn').addEventListener('click', function() {
+            if (window.history.length > 1) { window.history.back(); } else { window.close(); }
+          });
+          document.querySelector('.print-btn').addEventListener('click', function() { window.print(); });
+          document.querySelector('.share-btn').addEventListener('click', async function() {
+            if (navigator.share) {
+              try { await navigator.share({ title: document.title, url: window.location.href }); }
+              catch(e) { if (e.name !== 'AbortError') window.print(); }
             } else { window.print(); }
           });
         ` }} />
