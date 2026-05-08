@@ -1,96 +1,52 @@
-const CACHE = 'rios-baterias-v2';
+const CACHE = 'semae-v1';
 
-// So cacheia recursos estaticos que nao precisam de autenticacao
+// Alteracao: service worker limpo para SEMAE, sem rotas antigas de consulta/Rios Baterias.
 const SHELL = [
   '/offline.html',
-  '/consulta-offline.html',
   '/icon-192.png',
   '/icon-512.png',
   '/manifest.json',
 ];
 
-self.addEventListener('install', event => {
-  event.waitUntil(
-    caches.open(CACHE).then(c => c.addAll(SHELL)).catch(() => {})
-  );
+self.addEventListener('install', (event) => {
+  event.waitUntil(caches.open(CACHE).then((cache) => cache.addAll(SHELL)).catch(() => {}));
   self.skipWaiting();
 });
 
-self.addEventListener('activate', event => {
+self.addEventListener('activate', (event) => {
   event.waitUntil(
-    caches.keys().then(keys =>
-      Promise.all(keys.filter(k => k !== CACHE).map(k => caches.delete(k)))
+    caches.keys().then((keys) =>
+      Promise.all(keys.filter((key) => key !== CACHE).map((key) => caches.delete(key)))
     )
   );
   self.clients.claim();
 });
 
-self.addEventListener('fetch', event => {
+self.addEventListener('fetch', (event) => {
   const req = event.request;
   if (req.method !== 'GET') return;
 
   const url = new URL(req.url);
+  if (url.origin !== self.location.origin) return;
 
-  // APIs: network-first, salva cache, fallback cache offline
   if (url.pathname.startsWith('/api/')) {
     event.respondWith(
-      fetch(req.clone())
-        .then(res => {
-          if (res.ok) {
-            caches.open(CACHE).then(c => c.put(req, res.clone()));
-          }
-          return res;
+      fetch(req).catch(() =>
+        new Response(JSON.stringify({ erro: 'offline' }), {
+          status: 503,
+          headers: { 'Content-Type': 'application/json' },
         })
-        .catch(() =>
-          caches.match(req).then(cached =>
-            cached || new Response(JSON.stringify({ erro: 'offline' }), {
-              headers: { 'Content-Type': 'application/json' },
-            })
-          )
-        )
+      )
     );
     return;
   }
 
-  // Paginas /consulta/*: network-first, salva cache
-  // Se offline, serve cache ou redireciona para consulta-offline.html
-  if (url.pathname.startsWith('/consulta/')) {
-    const lojaId = url.pathname.split('/')[2] || '1';
-    event.respondWith(
-      fetch(req.clone())
-        .then(res => {
-          if (res.ok) {
-            caches.open(CACHE).then(c => c.put(req, res.clone()));
-          }
-          return res;
-        })
-        .catch(() =>
-          caches.match(req).then(cached =>
-            cached ||
-            caches.match('/consulta-offline.html').then(offlinePage => {
-              if (offlinePage) {
-                // Retorna a pagina offline com URL modificada para passar o lojaId
-                return Response.redirect('/consulta-offline.html?loja=' + lojaId, 302);
-              }
-              return caches.match('/offline.html');
-            })
-          )
-        )
-    );
-    return;
-  }
-
-  // Outros recursos: network-first, salva cache, fallback cache ou offline.html
   event.respondWith(
-    fetch(req.clone())
-      .then(res => {
-        if (res.ok) {
-          caches.open(CACHE).then(c => c.put(req, res.clone()));
-        }
+    fetch(req)
+      .then((res) => {
+        if (res.ok) caches.open(CACHE).then((cache) => cache.put(req, res.clone()));
         return res;
       })
-      .catch(() =>
-        caches.match(req).then(cached => cached || caches.match('/offline.html'))
-      )
+      .catch(() => caches.match(req).then((cached) => cached || caches.match('/offline.html')))
   );
 });

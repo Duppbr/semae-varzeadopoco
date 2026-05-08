@@ -1,7 +1,7 @@
 import { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
-  appId: 'br.gov.varzeadopoco.semae',
+  appId: 'com.semae.varzeadopoco',
   appName: 'SEMAE',
   webDir: 'mobile',
   server: {

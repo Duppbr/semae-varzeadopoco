@@ -104,8 +104,12 @@ async function main() {
     await prisma.responsavel.create({ data: { nome: 'Responsável SEMAE', cargo: 'Coordenador(a)' } });
   }
 
-  // Usuário admin
-  const senhaHash = await bcrypt.hash('semae2024', 12);
+  // Alteracao: senha padrao removida; defina ADMIN_SEED_PASSWORD ao popular um ambiente novo.
+  const adminPassword = process.env.ADMIN_SEED_PASSWORD;
+  if (!adminPassword || adminPassword.length < 8) {
+    throw new Error('Defina ADMIN_SEED_PASSWORD com pelo menos 8 caracteres antes de rodar o seed.');
+  }
+  const senhaHash = await bcrypt.hash(adminPassword, 12);
   await prisma.usuario.upsert({
     where: { identificador: 'admin' },
     update: {},
@@ -117,7 +121,7 @@ async function main() {
       protegido: true,
     },
   });
-  console.log('Usuário admin criado (senha: semae2024).');
+  console.log('Usuario admin criado/validado. A senha nao e exibida por seguranca.');
   console.log('✅ Seed concluído!');
 }
 

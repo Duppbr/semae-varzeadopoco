@@ -1,9 +1,12 @@
-import { notFound } from 'next/navigation';
+import { notFound, redirect } from 'next/navigation';
 import { prisma } from '@/lib/prisma';
+import { getSession } from '@/lib/session';
 
 interface Props { params: Promise<{ id: string }> }
 
 export default async function SaidaPdfPage({ params }: Props) {
+  const session = await getSession();
+  if (!session.isLoggedIn) redirect('/login');
   const { id } = await params;
   const saida = await prisma.saida.findUnique({
     where: { id },

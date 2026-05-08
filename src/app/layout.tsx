@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import './globals.css';
+import ServiceWorkerRegister from '@/components/ServiceWorkerRegister';
 
 export const metadata: Metadata = {
   title: 'SEMAE – Alimentação Escolar',
@@ -22,7 +23,10 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="pt-BR">
-      <body className="bg-slate-100 min-h-screen">{children}</body>
+      <body className="bg-slate-100 min-h-screen">
+        <ServiceWorkerRegister />
+        {children}
+      </body>
     </html>
   );
 }
