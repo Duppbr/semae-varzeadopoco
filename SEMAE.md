@@ -418,10 +418,10 @@ node scripts/gerar-icones.js
 As páginas de PDF (`/saida/[id]/pdf` e `/pedido-compra/[id]/pdf`) têm uma barra de ações sticky no topo com três botões:
 
 - **← Voltar** – navega para a rota pai (remove `/pdf` da URL)
-- **📤 Compartilhar** – usa `navigator.share()` para abrir o seletor nativo do Android
-- **🖨️ Imprimir** – no Capacitor/Android chama Compartilhar; em browser desktop abre `window.print()`
+- **📤 Compartilhar** – no APK usa o plugin nativo `SemaePdf.share()`; no navegador usa fallback web
+- **🖨️ Imprimir** – no APK usa o `PrintManager` nativo via `SemaePdf.print()`; no desktop abre `window.print()`
 
-Importante: `window.print()` **não funciona** no WebView do Capacitor. `navigator.share()` é a solução para mobile.
+Importante: `window.print()` **não funciona** no WebView do Capacitor. Para Android, a solução atual é o plugin nativo local `SemaePdf`.
 
 Os botões usam `dangerouslySetInnerHTML` com atributos `onclick` HTML puros — `onClick` do React não funciona em páginas que retornam `<html>` diretamente sem hidratação.
 
@@ -498,6 +498,33 @@ Registro: `src/components/ServiceWorkerRegister.tsx` importado no `src/app/layou
 | Validação do `SECRET_COOKIE_PASSWORD` dentro de `getSession()` | Colocar no nível de módulo causava crash imediato da função serverless no Vercel (body vazio na resposta) |
 | Porta 6543 (pooler transação) para DATABASE_URL | Vercel serverless abre conexão por invocação. Modo sessão (5432) esgota o pool do Supabase free tier |
 | `dangerouslySetInnerHTML` nos botões do PDF | Páginas PDF retornam `<html>` diretamente sem hidratação React. O prop `onClick` do React não vira atributo `onclick` HTML nessas páginas |
-| `navigator.share()` no lugar de `window.print()` no Android | `window.print()` é silencioso no WebView do Capacitor — não abre diálogo de impressão |
+| Plugin nativo `SemaePdf` no lugar de depender de `window.print()`/`navigator.share()` no Android | O WebView do Capacitor não garante impressão nem compartilhamento via APIs web |
 | APK aponta para Vercel via `server.url` | Atualizações do sistema não exigem novo APK. Apenas alterações nativas (permissões, plugins) precisam de rebuild |
 | Estoque negativo não bloqueia | Decisão operacional: registros emergenciais e ajustes manuais posteriores devem ser possíveis sem travar o fluxo |
+---
+
+## Correcao Aplicada Em 08/05/2026 - PDF No Android
+
+Problema observado: no APK Android, os botoes **Compartilhar** e **Imprimir** apareciam nas paginas de PDF, mas nao acionavam o seletor nativo nem a impressao.
+
+Causa tecnica:
+- As rotas de PDF sao HTML com CSS de impressao, nao arquivos `.pdf` binarios.
+- `window.print()` nao abre o dialogo de impressao dentro do WebView do Capacitor.
+- `navigator.share()` pode nao estar disponivel ou pode falhar silenciosamente dentro do WebView.
+
+Solucao aplicada:
+- Criado o plugin Android local `android/app/src/main/java/com/semae/varzeadopoco/SemaePdfPlugin.java`.
+- Registrado o plugin no `android/app/src/main/java/com/semae/varzeadopoco/MainActivity.java`.
+- `SemaePdf.print()` chama o `PrintManager` nativo do Android usando `WebView.createPrintDocumentAdapter()`.
+- `SemaePdf.share()` abre o chooser nativo do Android com `Intent.ACTION_SEND`.
+- Criado o helper compartilhado `src/lib/pdf-actions.ts`.
+- Atualizadas as rotas `src/app/saida/[id]/pdf/page.tsx` e `src/app/pedido-compra/[id]/pdf/page.tsx`.
+
+Validacao:
+- `npm run build` passou.
+- `npx cap sync android` passou.
+- `./android/gradlew.bat -p android assembleDebug --no-daemon` passou usando:
+  - `JAVA_HOME=C:\Program Files\Android\Android Studio\jbr`
+  - `ANDROID_HOME=C:\Users\Duppbr\AppData\Local\Android\Sdk`
+
+Importante: por envolver plugin nativo, a impressao Android so funcionara apos gerar e instalar um novo APK. Apenas redeploy no Vercel atualiza o HTML, mas nao adiciona o plugin nativo ao APK antigo.

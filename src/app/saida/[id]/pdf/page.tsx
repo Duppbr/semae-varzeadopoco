@@ -1,6 +1,7 @@
 import { notFound, redirect } from 'next/navigation';
 import { prisma } from '@/lib/prisma';
 import { getSession } from '@/lib/session';
+import { pdfActionBarHtml, pdfActionScript } from '@/lib/pdf-actions';
 
 interface Props { params: Promise<{ id: string }> }
 
@@ -74,35 +75,9 @@ export default async function SaidaPdfPage({ params }: Props) {
         <style dangerouslySetInnerHTML={{ __html: css }} />
       </head>
       <body>
-        <script dangerouslySetInnerHTML={{ __html: `
-          function pdfVoltar() {
-            var url = window.location.pathname;
-            window.location.href = url.endsWith('/pdf') ? url.slice(0, -4) : '/saida';
-          }
-          function pdfImprimir() {
-            var isCapacitor = !!(window.Capacitor);
-            var isMobile = /Android|iPhone|iPad/i.test(navigator.userAgent);
-            if (isCapacitor || (isMobile && !window.matchMedia)) {
-              pdfCompartilhar();
-            } else {
-              window.print();
-            }
-          }
-          function pdfCompartilhar() {
-            if (navigator.share) {
-              navigator.share({ title: document.title, url: window.location.href })
-                .catch(function(e) { if (e.name !== 'AbortError') window.print(); });
-            } else {
-              window.print();
-            }
-          }
-        ` }} />
+        <script dangerouslySetInnerHTML={{ __html: pdfActionScript('/saida') }} />
 
-        <div className="action-bar" dangerouslySetInnerHTML={{ __html:
-          '<button class="back-btn" type="button" onclick="pdfVoltar()">&#8592; Voltar</button>' +
-          '<button class="share-btn" type="button" onclick="pdfCompartilhar()">&#128228; Compartilhar</button>' +
-          '<button class="print-btn" type="button" onclick="pdfImprimir()">&#128438; Imprimir</button>'
-        }} />
+        <div className="action-bar" dangerouslySetInnerHTML={{ __html: pdfActionBarHtml() }} />
 
         <div className="watermark" />
         <div className="page">
