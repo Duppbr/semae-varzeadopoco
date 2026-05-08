@@ -1,0 +1,408 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Saída #0015 – SEMAE</title>
+  <style>
+    @page { size: A4; margin: 1cm; }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: Arial, sans-serif; background: #f1f5f9; color: #1e293b; font-size: 12px; }
+    .action-bar { display: flex; gap: 8px; padding: 12px 16px; background: #fff; border-bottom: 1px solid #e2e8f0; }
+    .back-btn { background: #64748b; color: white; border: none; padding: 10px 16px; border-radius: 8px; cursor: pointer; font-size: 13px; font-weight: 600; }
+    .share-btn { background: #f97316; color: white; border: none; padding: 10px 16px; border-radius: 8px; cursor: pointer; font-size: 13px; font-weight: 600; }
+    .print-btn { background: #1e3a5f; color: white; border: none; padding: 10px 16px; border-radius: 8px; cursor: pointer; font-size: 13px; font-weight: 600; }
+    .page { max-width: 800px; margin: 24px auto; padding: 32px; background: white; position: relative; border-radius: 8px; box-shadow: 0 1px 8px rgba(0,0,0,0.08); }
+    .content { position: relative; z-index: 1; }
+    .header { display: flex; align-items: center; gap: 16px; border-bottom: 2px solid #1e3a5f; padding-bottom: 16px; margin-bottom: 20px; }
+    .header img { width: 64px; height: 64px; object-fit: contain; }
+    .header-text h1 { font-size: 18px; font-weight: 700; color: #1e3a5f; }
+    .header-text p { color: #64748b; font-size: 11px; margin-top: 2px; }
+    .doc-title { background: #1e3a5f; color: white; padding: 10px 16px; border-radius: 8px; margin-bottom: 16px; display: flex; justify-content: space-between; align-items: center; }
+    .doc-title h2 { font-size: 14px; font-weight: 700; }
+    .doc-title span { font-size: 12px; opacity: 0.9; }
+    .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 20px; }
+    .info-box { border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px 14px; }
+    .info-box label { display: block; font-size: 10px; color: #64748b; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px; }
+    .info-box p { font-weight: 600; color: #1e293b; }
+    .info-box small { color: #64748b; font-size: 10px; }
+    table { width: 100%; border-collapse: collapse; margin-bottom: 24px; }
+    thead th { background: #f1f5f9; color: #475569; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; padding: 8px 12px; text-align: left; border-bottom: 1px solid #e2e8f0; }
+    tbody td { padding: 9px 12px; border-bottom: 1px solid #f1f5f9; color: #1e293b; }
+    tbody tr:last-child td { border-bottom: 2px solid #e2e8f0; }
+    .num { text-align: right; }
+    .total-row { background: #f8fafc; font-weight: 700; }
+    .signatures { display: grid; grid-template-columns: 1fr 1fr; gap: 32px; margin-top: 40px; }
+    .sig-box { text-align: center; }
+    .sig-line { border-top: 1.5px solid #334155; margin-bottom: 8px; }
+    .sig-box p { font-size: 11px; color: #475569; }
+    .sig-box strong { display: block; font-size: 12px; color: #1e293b; }
+    .footer { border-top: 1px solid #e2e8f0; padding-top: 12px; margin-top: 20px; text-align: center; font-size: 10px; color: #94a3b8; }
+    @media print { .action-bar { display: none !important; } body { background: white; } .page { margin: 0; box-shadow: none; } }
+  </style>
+</head>
+<body>
+  <script>
+    function pdfVoltar() { window.close(); }
+    function pdfImprimir() { window.print(); }
+    function pdfCompartilhar() {
+      if (navigator.share) {
+        navigator.share({ title: document.title, url: window.location.href }).catch(() => window.print());
+      } else { window.print(); }
+    }
+  </script>
+  <div class="action-bar">
+    <button class="back-btn" onclick="pdfVoltar()">← Fechar</button>
+    <button class="share-btn" onclick="pdfCompartilhar()">📤 Compartilhar</button>
+    <button class="print-btn" onclick="pdfImprimir()">🖨️ Imprimir</button>
+  </div>
+
+  <div class="page">
+    <div class="content">
+      <div class="header">
+        <img src="../public/logo-semae.png" alt="SEMAE" onerror="this.style.display='none'" />
+        <div class="header-text">
+          <h1>SEMAE – Setor Municipal de Alimentação Escolar</h1>
+          <p>Prefeitura Municipal de Várzea do Poço – BA</p>
+        </div>
+      </div>
+
+      <div class="doc-title">
+        <h2>Controle de Saída de Mercadorias</h2>
+        <span>Pedido Nº 0015</span>
+      </div>
+
+      <div class="info-grid">
+        <div class="info-box">
+          <label>Escola / Creche</label>
+          <p>Escola Municipal Centro</p>
+          <small>ESCOLA</small>
+        </div>
+        <div class="info-box">
+          <label>Data</label>
+          <p>08/05/2026</p>
+        </div>
+        <div class="info-box">
+          <label>Responsável SEMAE</label>
+          <p>JUSCICLEIDE DE OLIVEIRA RIOS</p>
+          <small>Coordenador(a)</small>
+        </div>
+        <div class="info-box">
+          <label>Recebedor</label>
+          <p>Teste Automatizado</p>
+        </div>
+        
+        <div class="info-box" style="grid-column:1/-1">
+          <label>Observação</label>
+          <p>Saída de teste gerada para visualização do PDF completo.</p>
+        </div>
+      </div>
+
+      <table>
+        <thead>
+          <tr>
+            <th style="width:5%">#</th>
+            <th style="width:65%">Produto</th>
+            <th class="num" style="width:15%">Quantidade</th>
+            <th class="num" style="width:15%">Unid.</th>
+          </tr>
+        </thead>
+        <tbody>
+          
+    <tr>
+      <td style="color:#94a3b8">1</td>
+      <td>Achocolatado em Pó</td>
+      <td class="num">10</td>
+      <td class="num">pct</td>
+    </tr>
+  
+    <tr>
+      <td style="color:#94a3b8">2</td>
+      <td>Açúcar</td>
+      <td class="num">10</td>
+      <td class="num">kg</td>
+    </tr>
+  
+    <tr>
+      <td style="color:#94a3b8">3</td>
+      <td>Amido de Milho</td>
+      <td class="num">10</td>
+      <td class="num">kg</td>
+    </tr>
+  
+    <tr>
+      <td style="color:#94a3b8">4</td>
+      <td>Arroz Branco</td>
+      <td class="num">10</td>
+      <td class="num">kg</td>
+    </tr>
+  
+    <tr>
+      <td style="color:#94a3b8">5</td>
+      <td>Arroz Parbolizado</td>
+      <td class="num">10</td>
+      <td class="num">kg</td>
+    </tr>
+  
+    <tr>
+      <td style="color:#94a3b8">6</td>
+      <td>Azeite de Oliva</td>
+      <td class="num">10</td>
+      <td class="num">L</td>
+    </tr>
+  
+    <tr>
+      <td style="color:#94a3b8">7</td>
+      <td>Biscoito Doce</td>
+      <td class="num">10</td>
+      <td class="num">pct</td>
+    </tr>
+  
+    <tr>
+      <td style="color:#94a3b8">8</td>
+      <td>Biscoito Sal</td>
+      <td class="num">10</td>
+      <td class="num">pct</td>
+    </tr>
+  
+    <tr>
+      <td style="color:#94a3b8">9</td>
+      <td>Café</td>
+      <td class="num">10</td>
+      <td class="num">pct</td>
+    </tr>
+  
+    <tr>
+      <td style="color:#94a3b8">10</td>
+      <td>Canela em Lasca</td>
+      <td class="num">10</td>
+      <td class="num">pct</td>
+    </tr>
+  
+    <tr>
+      <td style="color:#94a3b8">11</td>
+      <td>Canela em Pó</td>
+      <td class="num">10</td>
+      <td class="num">pct</td>
+    </tr>
+  
+    <tr>
+      <td style="color:#94a3b8">12</td>
+      <td>Coco Ralado</td>
+      <td class="num">10</td>
+      <td class="num">pct</td>
+    </tr>
+  
+    <tr>
+      <td style="color:#94a3b8">13</td>
+      <td>Creme de Leite</td>
+      <td class="num">10</td>
+      <td class="num">lata</td>
+    </tr>
+  
+    <tr>
+      <td style="color:#94a3b8">14</td>
+      <td>Cremogema Chocolate</td>
+      <td class="num">10</td>
+      <td class="num">pct</td>
+    </tr>
+  
+    <tr>
+      <td style="color:#94a3b8">15</td>
+      <td>Cremogema Morango</td>
+      <td class="num">10</td>
+      <td class="num">pct</td>
+    </tr>
+  
+    <tr>
+      <td style="color:#94a3b8">16</td>
+      <td>Cremogema Tradicional</td>
+      <td class="num">10</td>
+      <td class="num">pct</td>
+    </tr>
+  
+    <tr>
+      <td style="color:#94a3b8">17</td>
+      <td>Ervilha</td>
+      <td class="num">10</td>
+      <td class="num">lata</td>
+    </tr>
+  
+    <tr>
+      <td style="color:#94a3b8">18</td>
+      <td>Extrato de Tomate</td>
+      <td class="num">10</td>
+      <td class="num">pct</td>
+    </tr>
+  
+    <tr>
+      <td style="color:#94a3b8">19</td>
+      <td>Farinha de Trigo Com Fermento</td>
+      <td class="num">10</td>
+      <td class="num">kg</td>
+    </tr>
+  
+    <tr>
+      <td style="color:#94a3b8">20</td>
+      <td>Farinha de Trigo Sem Fermento</td>
+      <td class="num">10</td>
+      <td class="num">kg</td>
+    </tr>
+  
+    <tr>
+      <td style="color:#94a3b8">21</td>
+      <td>Feijão Carioca</td>
+      <td class="num">10</td>
+      <td class="num">kg</td>
+    </tr>
+  
+    <tr>
+      <td style="color:#94a3b8">22</td>
+      <td>Feijão Preto</td>
+      <td class="num">10</td>
+      <td class="num">kg</td>
+    </tr>
+  
+    <tr>
+      <td style="color:#94a3b8">23</td>
+      <td>Flocão de Milho</td>
+      <td class="num">10</td>
+      <td class="num">pct</td>
+    </tr>
+  
+    <tr>
+      <td style="color:#94a3b8">24</td>
+      <td>Fubá</td>
+      <td class="num">10</td>
+      <td class="num">pct</td>
+    </tr>
+  
+    <tr>
+      <td style="color:#94a3b8">25</td>
+      <td>Leite Condensado</td>
+      <td class="num">10</td>
+      <td class="num">lata</td>
+    </tr>
+  
+    <tr>
+      <td style="color:#94a3b8">26</td>
+      <td>Leite de Coco</td>
+      <td class="num">10</td>
+      <td class="num">pct</td>
+    </tr>
+  
+    <tr>
+      <td style="color:#94a3b8">27</td>
+      <td>Leite em Pó</td>
+      <td class="num">10</td>
+      <td class="num">kg</td>
+    </tr>
+  
+    <tr>
+      <td style="color:#94a3b8">28</td>
+      <td>Leite Integral Líquido</td>
+      <td class="num">10</td>
+      <td class="num">L</td>
+    </tr>
+  
+    <tr>
+      <td style="color:#94a3b8">29</td>
+      <td>Macarrão de Sopa</td>
+      <td class="num">10</td>
+      <td class="num">pct</td>
+    </tr>
+  
+    <tr>
+      <td style="color:#94a3b8">30</td>
+      <td>Macarrão Espaguete</td>
+      <td class="num">10</td>
+      <td class="num">pct</td>
+    </tr>
+  
+    <tr>
+      <td style="color:#94a3b8">31</td>
+      <td>Macarrão Parafuso</td>
+      <td class="num">10</td>
+      <td class="num">pct</td>
+    </tr>
+  
+    <tr>
+      <td style="color:#94a3b8">32</td>
+      <td>Milho de Mungunzá</td>
+      <td class="num">10</td>
+      <td class="num">pct</td>
+    </tr>
+  
+    <tr>
+      <td style="color:#94a3b8">33</td>
+      <td>Milho de Pipoca</td>
+      <td class="num">10</td>
+      <td class="num">pct</td>
+    </tr>
+  
+    <tr>
+      <td style="color:#94a3b8">34</td>
+      <td>Milho Verde</td>
+      <td class="num">10</td>
+      <td class="num">lata</td>
+    </tr>
+  
+    <tr>
+      <td style="color:#94a3b8">35</td>
+      <td>Molho de Tomate</td>
+      <td class="num">10</td>
+      <td class="num">pct</td>
+    </tr>
+  
+    <tr>
+      <td style="color:#94a3b8">36</td>
+      <td>Óleo de Soja</td>
+      <td class="num">10</td>
+      <td class="num">L</td>
+    </tr>
+  
+    <tr>
+      <td style="color:#94a3b8">37</td>
+      <td>Sal</td>
+      <td class="num">10</td>
+      <td class="num">pct</td>
+    </tr>
+  
+    <tr>
+      <td style="color:#94a3b8">38</td>
+      <td>Vinagre</td>
+      <td class="num">10</td>
+      <td class="num">L</td>
+    </tr>
+  
+          <tr class="total-row">
+            <td colspan="2">Total de itens:</td>
+            <td colspan="2" class="num">38 produto(s)</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div class="signatures">
+        <div class="sig-box">
+          <div style="height:48px"></div>
+          <div class="sig-line"></div>
+          <strong>JUSCICLEIDE DE OLIVEIRA RIOS</strong>
+          <p>Coordenador(a)</p>
+          <p style="font-size:10px;margin-top:4px">Data: ___/___/______</p>
+        </div>
+        <div class="sig-box">
+          <div style="height:48px"></div>
+          <div class="sig-line"></div>
+          <strong>Teste Automatizado</strong>
+          <p>Assinatura do Recebedor</p>
+          <p style="font-size:10px;margin-top:4px">Data: ___/___/______</p>
+        </div>
+      </div>
+
+      <div class="footer">
+        Documento gerado em 08/05/2026 · SEMAE – Prefeitura Municipal de Várzea do Poço · Pedido #0015
+      </div>
+    </div>
+  </div>
+</body>
+</html>
