@@ -87,13 +87,17 @@ export default async function PedidoCompraPdfPage({ params }: Props) {
         <script dangerouslySetInnerHTML={{ __html: `
           function pdfVoltar() {
             var url = window.location.pathname;
-            if (url.endsWith('/pdf')) {
-              window.location.href = url.slice(0, -4);
+            window.location.href = url.endsWith('/pdf') ? url.slice(0, -4) : '/pedido-compra';
+          }
+          function pdfImprimir() {
+            var isCapacitor = !!(window.Capacitor);
+            var isMobile = /Android|iPhone|iPad/i.test(navigator.userAgent);
+            if (isCapacitor || (isMobile && !window.matchMedia)) {
+              pdfCompartilhar();
             } else {
-              window.history.back();
+              window.print();
             }
           }
-          function pdfImprimir() { window.print(); }
           function pdfCompartilhar() {
             if (navigator.share) {
               navigator.share({ title: document.title, url: window.location.href })
@@ -104,11 +108,11 @@ export default async function PedidoCompraPdfPage({ params }: Props) {
           }
         ` }} />
 
-        <div className="action-bar">
-          <button className="back-btn" type="button" onClick="pdfVoltar()">← Voltar</button>
-          <button className="share-btn" type="button" onClick="pdfCompartilhar()">📤 Compartilhar</button>
-          <button className="print-btn" type="button" onClick="pdfImprimir()">🖨️ Imprimir</button>
-        </div>
+        <div className="action-bar" dangerouslySetInnerHTML={{ __html:
+          '<button class="back-btn" type="button" onclick="pdfVoltar()">&#8592; Voltar</button>' +
+          '<button class="share-btn" type="button" onclick="pdfCompartilhar()">&#128228; Compartilhar</button>' +
+          '<button class="print-btn" type="button" onclick="pdfImprimir()">&#128438; Imprimir</button>'
+        }} />
 
         <div className="watermark" />
         <div className="page">

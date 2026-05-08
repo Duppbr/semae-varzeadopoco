@@ -27,8 +27,8 @@ export default function SaidaPage() {
   const [filtroStatus, setFiltroStatus] = useState('');
 
   const carregar = () => {
-    const qs = filtroStatus ? `?status=${filtroStatus}` : '';
-    fetch(`/api/saida${qs}&limit=50`)
+    const qs = filtroStatus ? `?status=${filtroStatus}&limit=50` : '?limit=50';
+    fetch(`/api/saida${qs}`)
       .then(r => { if (r.status === 401) { router.push('/login'); return null; } return r.json(); })
       .then(d => { if (d) setSaidas(d); })
       .finally(() => setLoading(false));
