@@ -8,10 +8,11 @@ import {
   AlertTriangle, TrendingUp, ArrowRight, ShoppingCart,
 } from 'lucide-react';
 import Link from 'next/link';
+import { requisitar } from '@/lib/http-client';
 
 interface DashboardData {
   totalProdutos: number;
-  totalEstoque: number;
+  produtosComSaldo: number;
   produtosAbaixoMinimo: number;
   entradasHoje: number;
   saidasHoje: number;
@@ -36,19 +37,17 @@ export default function DashboardPage() {
   const router = useRouter();
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [erro, setErro] = useState('');
 
   useEffect(() => {
-    fetch('/api/dashboard')
-      .then((r) => {
-        if (r.status === 401) { router.push('/login'); return null; }
-        return r.json();
-      })
+    requisitar<DashboardData>('/api/dashboard')
       .then((d) => { if (d) setData(d); })
+      .catch(e => setErro(e.message))
       .finally(() => setLoading(false));
   }, [router]);
 
   const fmtData = (iso: string) =>
-    new Date(iso).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: '2-digit' });
+    new Date(iso).toLocaleDateString('pt-BR', { timeZone: 'UTC', day: '2-digit', month: '2-digit', year: '2-digit' });
 
   if (loading) return (
     <AppShell title="SEMAE – Início">
@@ -61,6 +60,7 @@ export default function DashboardPage() {
   return (
     <AppShell title="SEMAE – Início">
       <div className="space-y-5">
+        {erro && <p role="alert" className="text-red-700">{erro}</p>}
         {/* SEMAE header */}
         <div className="bg-blue-600 rounded-2xl p-5 text-white">
           <p className="text-blue-200 text-sm font-medium">Setor Municipal de Alimentação Escolar</p>
@@ -81,10 +81,10 @@ export default function DashboardPage() {
           </div>
           <div className="bg-white rounded-2xl p-4 border border-slate-200 shadow-sm">
             <div className="flex items-center justify-between mb-2">
-              <span className="text-xs text-slate-500 font-medium">Total em estoque</span>
+              <span className="text-xs text-slate-500 font-medium">Produtos com saldo</span>
               <TrendingUp size={16} className="text-green-500" />
             </div>
-            <p className="text-2xl font-bold text-slate-900">{data?.totalEstoque?.toFixed(1) ?? 0}</p>
+            <p className="text-2xl font-bold text-slate-900">{data?.produtosComSaldo ?? 0}</p>
           </div>
           <div className="bg-white rounded-2xl p-4 border border-slate-200 shadow-sm">
             <div className="flex items-center justify-between mb-2">

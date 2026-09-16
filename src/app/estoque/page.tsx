@@ -1,9 +1,11 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
-import { useRouter } from 'next/navigation';
 import AppShell from '@/components/AppShell';
 import { Package, AlertTriangle, Search, Edit3, Check, X } from 'lucide-react';
+import Link from 'next/link';
+import { estoqueBaixo } from '@/lib/regras';
+import { requisitar } from '@/lib/http-client';
 
 interface ProdutoEstoque {
   id: string; nome: string; estoqueMinimo: number; ativo: boolean;
@@ -13,7 +15,6 @@ interface ProdutoEstoque {
 }
 
 export default function EstoquePage() {
-  const router = useRouter();
   const [produtos, setProdutos] = useState<ProdutoEstoque[]>([]);
   const [loading, setLoading] = useState(true);
   const [busca, setBusca] = useState('');
@@ -22,22 +23,20 @@ export default function EstoquePage() {
   const [motivoEdit, setMotivoEdit] = useState('');
   const [salvando, setSalvando] = useState(false);
   const [filtroBaixo, setFiltroBaixo] = useState(false);
+  const [erro, setErro] = useState('');
 
   const carregar = useCallback((search = '') => {
     const qs = search ? `?search=${encodeURIComponent(search)}` : '';
-    fetch(`/api/estoque${qs}`)
-      .then(r => { if (r.status === 401) { router.push('/login'); return null; } return r.json(); })
+    requisitar<ProdutoEstoque[]>(`/api/estoque${qs}`)
       .then(d => { if (d) setProdutos(d); })
+      .catch(e => setErro(e.message))
       .finally(() => setLoading(false));
-  }, [router]);
+  }, []);
 
   useEffect(() => { carregar(); }, [carregar]);
 
-  const debouncedBusca = useCallback((v: string) => {
-    setBusca(v);
-    const t = setTimeout(() => carregar(v), 400);
-    return () => clearTimeout(t);
-  }, [carregar]);
+  // Filtragem local evita respostas atrasadas sobrescrevendo buscas mais recentes.
+  const debouncedBusca = (v: string) => setBusca(v);
 
   const iniciarEdicao = (p: ProdutoEstoque) => {
     setEditandoId(p.id);
@@ -49,24 +48,27 @@ export default function EstoquePage() {
 
   const salvarEdicao = async (produtoId: string) => {
     setSalvando(true);
-    await fetch(`/api/estoque/${produtoId}`, {
+    setErro('');
+    try {
+    const salvo = await requisitar<{ quantidade: number }>(`/api/estoque/${produtoId}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ quantidade: parseFloat(novaQtd), motivo: motivoEdit || 'Ajuste manual de estoque' }),
+      body: JSON.stringify({ quantidade: parseFloat(novaQtd), motivo: motivoEdit, quantidadeAnterior: produtos.find(p => p.id === produtoId)?.estoque?.quantidade ?? 0 }),
     });
-    setProdutos(prev => prev.map(p => p.id === produtoId ? { ...p, estoque: { quantidade: parseFloat(novaQtd) } } : p));
+    setProdutos(prev => prev.map(p => p.id === produtoId ? { ...p, estoque: { quantidade: salvo.quantidade } } : p));
     cancelarEdicao();
-    setSalvando(false);
+    } catch (e) { setErro(e instanceof Error ? e.message : 'Falha ao salvar.'); }
+    finally { setSalvando(false); }
   };
 
-  const produtosFiltrados = filtroBaixo
-    ? produtos.filter(p => (p.estoque?.quantidade ?? 0) < p.estoqueMinimo || (p.estoque?.quantidade ?? 0) === 0)
-    : produtos;
+  const produtosFiltrados = produtos.filter(p => p.nome.toLowerCase().includes(busca.toLowerCase()) &&
+    (!filtroBaixo || estoqueBaixo(p.estoque?.quantidade ?? 0, p.estoqueMinimo)));
 
-  const baixoEstoque = produtos.filter(p => (p.estoque?.quantidade ?? 0) < p.estoqueMinimo && p.estoqueMinimo > 0).length;
+  const baixoEstoque = produtos.filter(p => estoqueBaixo(p.estoque?.quantidade ?? 0, p.estoqueMinimo)).length;
 
   return (
     <AppShell title="Estoque">
+      {erro && <p role="alert" className="text-red-700 mb-3">{erro}</p>}
       <div className="space-y-4">
         {/* Sumário */}
         <div className="grid grid-cols-2 gap-3">
@@ -103,7 +105,7 @@ export default function EstoquePage() {
           <div className="space-y-2">
             {produtosFiltrados.map(p => {
               const qtd = p.estoque?.quantidade ?? 0;
-              const baixo = p.estoqueMinimo > 0 && qtd < p.estoqueMinimo;
+              const baixo = estoqueBaixo(qtd, p.estoqueMinimo);
               const editando = editandoId === p.id;
 
               return (
@@ -113,7 +115,8 @@ export default function EstoquePage() {
                     <div className="flex-1 min-w-0">
                       <div className="flex items-start justify-between gap-2">
                         <div className="min-w-0">
-                          <p className="font-semibold text-slate-900 text-sm truncate">{p.nome}</p>
+                          <Link href={`/estoque/${p.id}`} className="font-semibold text-blue-700 text-sm">{p.nome}</Link>
+                          <Link href={`/estoque/${p.id}`} className="block text-xs text-blue-700 underline">Histórico</Link>
                           <p className="text-xs text-slate-500">{p.categoria.nome}</p>
                         </div>
                         {!editando && (
@@ -128,12 +131,12 @@ export default function EstoquePage() {
                         <div className="mt-3 space-y-2">
                           <div className="flex items-center gap-2">
                             <input type="number" value={novaQtd} onChange={e => setNovaQtd(e.target.value)}
-                              placeholder="Qtd" step="0.1" min="0"
+                              placeholder="Qtd" step="any"
                               className="flex-1 px-3 py-2 border border-blue-300 rounded-xl text-center font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500" />
                             <span className="text-sm text-slate-600 shrink-0">{p.unidade.abreviacao}</span>
                           </div>
                           <input type="text" value={motivoEdit} onChange={e => setMotivoEdit(e.target.value)}
-                            placeholder="Motivo do ajuste (opcional)"
+                            placeholder="Motivo do ajuste (obrigatório)"
                             className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500" />
                           <div className="flex gap-2">
                             <button onClick={() => salvarEdicao(p.id)} disabled={salvando}

@@ -210,7 +210,6 @@ export default function AdminEscolasPage() {
           <div className="flex flex-col items-center justify-center pt-12 text-center">
             <School size={32} className="text-slate-300 mb-3" />
             <p className="font-semibold text-slate-600">Nenhuma escola cadastrada</p>
-            <p className="text-sm text-slate-400 mt-1">Clique em "Nova" para adicionar</p>
           </div>
         ) : (
           <div className="space-y-3">

@@ -12,9 +12,12 @@
 
 # testing
 /coverage
+/test-results/
+/playwright-report/
 
 # next.js
 /.next/
+/.next-local/
 /out/
 
 # production
@@ -39,3 +42,7 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# backups e snapshots de dados de producao (nao versionar)
+/backups/
+/scripts/*.snapshot.json

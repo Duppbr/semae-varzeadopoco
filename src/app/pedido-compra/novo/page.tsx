@@ -4,6 +4,8 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import AppShell from '@/components/AppShell';
 import { Plus, Trash2, ShoppingCart, Search } from 'lucide-react';
+import { requisitar } from '@/lib/http-client';
+import { hoje } from '@/lib/regras';
 
 interface Escola { id: string; nome: string; tipo: string }
 interface Produto {
@@ -28,7 +30,10 @@ export default function NovoPedidoCompraPage() {
   const [escolas, setEscolas] = useState<Escola[]>([]);
   const [produtos, setProdutos] = useState<Produto[]>([]);
   const [responsaveis, setResponsaveis] = useState<Responsavel[]>([]);
-  const [data, setData] = useState(() => new Date().toISOString().split('T')[0]);
+  const [data, setData] = useState(hoje);
+  const [unidades, setUnidades] = useState<{ id: string; nome: string; abreviacao: string }[]>([]);
+  const [nomeLivre, setNomeLivre] = useState('');
+  const [unidadeLivre, setUnidadeLivre] = useState('');
   const [escolaId, setEscolaId] = useState('');
   const [responsavelId, setResponsavelId] = useState('');
   const [observacao, setObservacao] = useState('');
@@ -40,14 +45,16 @@ export default function NovoPedidoCompraPage() {
 
   useEffect(() => {
     Promise.all([
-      fetch('/api/escolas?ativo=true').then(r => { if (r.status === 401) { router.push('/login'); return []; } return r.json(); }),
-      fetch('/api/estoque').then(r => r.json()),
-      fetch('/api/responsaveis?ativo=true').then(r => r.json()).catch(() => []),
-    ]).then(([esc, prod, resp]) => {
+      requisitar<Escola[]>('/api/escolas?ativo=true'),
+      requisitar<Produto[]>('/api/estoque'),
+      requisitar<Responsavel[]>('/api/responsaveis?ativo=true'),
+      requisitar<{ id: string; nome: string; abreviacao: string }[]>('/api/unidades'),
+    ]).then(([esc, prod, resp, un]) => {
       setEscolas(esc);
       setProdutos(prod);
       setResponsaveis(resp);
-    });
+      setUnidades(un);
+    }).catch(e => setErro(e.message));
   }, []);
 
   const produtosFiltrados = produtos.filter(p =>
@@ -75,9 +82,9 @@ export default function NovoPedidoCompraPage() {
     setItens(prev => prev.map((it, i) => (i === idx ? { ...it, quantidade: v } : it)));
 
   const salvar = async () => {
-    const itensValidos = itens.filter(i => parseFloat(i.quantidade) > 0);
-    if (itensValidos.length === 0) {
-      setErro('Adicione pelo menos um produto com quantidade.');
+    const itensValidos = itens;
+    if (!itensValidos.length || itens.some(i => !Number.isFinite(Number(i.quantidade)) || Number(i.quantidade) <= 0)) {
+      setErro('Informe uma quantidade positiva para todos os itens.');
       return;
     }
     setSalvando(true);
@@ -93,6 +100,7 @@ export default function NovoPedidoCompraPage() {
           observacao: observacao || undefined,
           itens: itensValidos.map(i => ({
             produtoId: i.produtoId,
+            descricao: i.produtoId ? undefined : i.produtoNome,
             quantidade: parseFloat(i.quantidade),
             unidadeId: i.unidadeId,
           })),
@@ -233,6 +241,19 @@ export default function NovoPedidoCompraPage() {
             </div>
           )}
 
+          <fieldset className="border-t border-slate-200 py-4 my-3 space-y-2">
+            <legend className="text-sm font-semibold">Item sem cadastro</legend>
+            <input aria-label="Nome do item sem cadastro" placeholder="Nome do item" maxLength={200} value={nomeLivre} onChange={e => setNomeLivre(e.target.value)} className="w-full p-3 border border-slate-300 rounded-lg" />
+            <select aria-label="Unidade do item sem cadastro" value={unidadeLivre} onChange={e => setUnidadeLivre(e.target.value)} className="w-full p-3 border border-slate-300 rounded-lg">
+              <option value="">Unidade</option>{unidades.map(u => <option key={u.id} value={u.id}>{u.nome} ({u.abreviacao})</option>)}
+            </select>
+            <button type="button" disabled={!nomeLivre.trim() || !unidadeLivre} className="flex gap-2 text-blue-700 disabled:opacity-40" onClick={() => {
+              const u = unidades.find(u => u.id === unidadeLivre);
+              if (!u || !nomeLivre.trim()) return;
+              setItens(prev => [...prev, { produtoId: '', produtoNome: nomeLivre.trim(), unidadeId: u.id, unidadeAbrev: u.abreviacao, estoqueAtual: 0, quantidade: '' }]);
+              setNomeLivre('');
+            }}><Plus size={18} /> Adicionar item ao pedido</button>
+          </fieldset>
           {itens.length === 0 ? (
             <div className="text-center py-6">
               <ShoppingCart size={28} className="mx-auto text-slate-300 mb-2" />
@@ -241,7 +262,7 @@ export default function NovoPedidoCompraPage() {
           ) : (
             <div className="space-y-3">
               {itens.map((it, idx) => (
-                <div key={it.produtoId} className="p-3 bg-slate-50 rounded-xl">
+                <div key={`${it.produtoId}-${idx}`} className="p-3 bg-slate-50 rounded-xl">
                   <div className="flex items-center gap-2 mb-2">
                     <div className="flex-1 min-w-0">
                       <p className="font-medium text-slate-900 text-sm truncate">{it.produtoNome}</p>
@@ -288,7 +309,7 @@ export default function NovoPedidoCompraPage() {
           ) : (
             <ShoppingCart size={20} />
           )}
-          {salvando ? 'Salvando...' : 'Salvar Pedido (Rascunho)'}
+          {salvando ? 'Salvando...' : 'Registrar pedido'}
         </button>
         <div className="h-2" />
       </div>

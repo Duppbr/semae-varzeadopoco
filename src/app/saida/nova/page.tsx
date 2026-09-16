@@ -3,6 +3,8 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import AppShell from '@/components/AppShell';
+import { requisitar } from '@/lib/http-client';
+import { hoje } from '@/lib/regras';
 import { Plus, Trash2, PackageMinus, Search } from 'lucide-react';
 
 interface Escola { id: string; nome: string; tipo: string }
@@ -15,7 +17,7 @@ export default function NovaSaidaPage() {
   const [escolas, setEscolas] = useState<Escola[]>([]);
   const [produtos, setProdutos] = useState<Produto[]>([]);
   const [responsaveis, setResponsaveis] = useState<Responsavel[]>([]);
-  const [data, setData] = useState(() => new Date().toISOString().split('T')[0]);
+  const [data, setData] = useState(hoje);
   const [escolaId, setEscolaId] = useState('');
   const [responsavelId, setResponsavelId] = useState('');
   const [recebedor, setRecebedor] = useState('');
@@ -28,10 +30,10 @@ export default function NovaSaidaPage() {
 
   useEffect(() => {
     Promise.all([
-      fetch('/api/escolas?ativo=true').then(r => r.json()),
-      fetch('/api/estoque').then(r => r.json()),
-      fetch('/api/responsaveis?ativo=true').then(r => r.json()).catch(() => []),
-    ]).then(([esc, prod, resp]) => { setEscolas(esc); setProdutos(prod); setResponsaveis(resp); });
+      requisitar<Escola[]>('/api/escolas?ativo=true'),
+      requisitar<Produto[]>('/api/estoque'),
+      requisitar<Responsavel[]>('/api/responsaveis?ativo=true'),
+    ]).then(([esc, prod, resp]) => { setEscolas(esc); setProdutos(prod); setResponsaveis(resp); }).catch(e => setErro(e.message));
   }, []);
 
   const produtosFiltrados = produtos.filter(p =>
@@ -52,8 +54,8 @@ export default function NovaSaidaPage() {
 
   const salvar = async () => {
     if (!escolaId) { setErro('Selecione a escola de destino.'); return; }
-    const itensValidos = itens.filter(i => parseFloat(i.quantidade) > 0);
-    if (itensValidos.length === 0) { setErro('Adicione pelo menos um produto com quantidade.'); return; }
+    const itensValidos = itens;
+    if (!itens.length || itens.some(i => !Number.isFinite(Number(i.quantidade)) || Number(i.quantidade) <= 0)) { setErro('Informe quantidade positiva em todos os itens.'); return; }
     setSalvando(true); setErro('');
     try {
       const res = await fetch('/api/saida', {

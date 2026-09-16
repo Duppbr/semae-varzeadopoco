@@ -1,10 +1,12 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useRouter, useParams } from 'next/navigation';
+import { useParams } from 'next/navigation';
 import AppShell from '@/components/AppShell';
 import Link from 'next/link';
 import { Printer, CheckCircle, XCircle, Calendar, School } from 'lucide-react';
+import { requisitar } from '@/lib/http-client';
+import Historico from '@/components/Historico';
 
 interface Saida {
   id: string; numero: number; data: string; status: string; recebedor: string | null; observacao: string | null;
@@ -18,45 +20,49 @@ const statusLabels: Record<string, string> = { PENDENTE: 'Pendente', ENTREGUE: '
 
 export default function SaidaDetalhe() {
   const params = useParams();
-  const router = useRouter();
   const [saida, setSaida] = useState<Saida | null>(null);
   const [loading, setLoading] = useState(true);
   const [atualizando, setAtualizando] = useState(false);
+  const [erro, setErro] = useState('');
 
   useEffect(() => {
-    fetch(`/api/saida/${params.id}`)
-      .then(r => { if (r.status === 401) { router.push('/login'); return null; } if (r.status === 404) { router.push('/saida'); return null; } return r.json(); })
+    requisitar<Saida>(`/api/saida/${params.id}`)
       .then(d => { if (d) setSaida(d); })
+      .catch(e => setErro(e.message))
       .finally(() => setLoading(false));
   }, [params.id]);
 
   const atualizarStatus = async (novoStatus: string) => {
     if (!saida) return;
+    if (novoStatus === 'CANCELADO' && !window.confirm('Cancelar a saída e devolver os itens ao estoque?')) return;
     setAtualizando(true);
-    await fetch(`/api/saida/${saida.id}`, {
+    try {
+    const salvo = await requisitar<Saida>(`/api/saida/${saida.id}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ status: novoStatus }),
     });
-    setSaida(prev => prev ? { ...prev, status: novoStatus } : null);
-    setAtualizando(false);
+    setSaida(salvo);
+    } catch (e) { setErro(e instanceof Error ? e.message : 'Falha ao atualizar.'); }
+    finally { setAtualizando(false); }
   };
 
-  const fmtData = (iso: string) => new Date(iso).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+  const fmtData = (iso: string) => new Date(iso).toLocaleDateString('pt-BR', { timeZone: 'UTC', day: '2-digit', month: '2-digit', year: 'numeric' });
 
   if (loading) return <AppShell title="Saída" backHref="/saida"><div className="h-64 bg-white rounded-2xl animate-pulse" /></AppShell>;
-  if (!saida) return null;
+  if (!saida) return <AppShell title="Saída" backHref="/saida"><p role="alert">{erro || 'Saída não encontrada.'}</p></AppShell>;
 
   return (
     <AppShell title={`Saída #${saida.numero}`} backHref="/saida"
       actions={
-        <Link href={`/saida/${saida.id}/pdf`} target="_blank"
+        <Link href={`/saida/${saida.id}/pdf`}
           className="flex items-center gap-1.5 bg-slate-800 text-white text-sm font-semibold px-3 py-1.5 rounded-xl active:bg-slate-900">
           <Printer size={16} /> PDF
         </Link>
       }
     >
       <div className="space-y-4">
+        {erro && <p role="alert" className="text-red-700">{erro}</p>}
         {/* Status badge */}
         <div className={`border rounded-2xl p-4 flex items-center justify-between ${statusColors[saida.status]}`}>
           <span className="font-bold text-base">Status: {statusLabels[saida.status]}</span>
@@ -106,7 +112,7 @@ export default function SaidaDetalhe() {
           {saida.observacao && (
             <div className="pt-3 border-t border-slate-100">
               <p className="text-xs text-slate-500 mb-0.5">Observação</p>
-              <p className="text-sm text-slate-700 italic">"{saida.observacao}"</p>
+              <p className="text-sm text-slate-700 italic">{saida.observacao}</p>
             </div>
           )}
         </div>
@@ -125,11 +131,11 @@ export default function SaidaDetalhe() {
         </div>
 
         {/* PDF button */}
-        <Link href={`/saida/${saida.id}/pdf`} target="_blank"
+        <Link href={`/saida/${saida.id}/pdf`}
           className="w-full flex items-center justify-center gap-2 bg-slate-800 text-white py-4 rounded-2xl font-bold text-base active:bg-slate-900 shadow-sm">
           <Printer size={20} /> Gerar PDF / Imprimir
         </Link>
-        <div className="h-2" />
+        <Historico key={saida.status} origemId={saida.id} />
       </div>
     </AppShell>
   );

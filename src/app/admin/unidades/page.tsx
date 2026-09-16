@@ -137,7 +137,6 @@ export default function AdminUnidadesPage() {
           <div className="flex flex-col items-center justify-center pt-12 text-center">
             <Ruler size={32} className="text-slate-300 mb-3" />
             <p className="font-semibold text-slate-600">Nenhuma unidade cadastrada</p>
-            <p className="text-sm text-slate-400 mt-1">Clique em "Nova" para adicionar</p>
           </div>
         ) : (
           <div className="space-y-2">

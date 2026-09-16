@@ -1,10 +1,10 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { requisitar } from '@/lib/http-client';
 import AppShell from '@/components/AppShell';
 import Link from 'next/link';
-import { Plus, PackagePlus, ChevronRight, Calendar } from 'lucide-react';
+import { Plus, PackagePlus, Calendar } from 'lucide-react';
 
 interface Entrada {
   id: string;
@@ -17,21 +17,21 @@ interface Entrada {
 }
 
 export default function EntradaPage() {
-  const router = useRouter();
   const [entradas, setEntradas] = useState<Entrada[]>([]);
   const [loading, setLoading] = useState(true);
+  const [erro, setErro] = useState('');
 
-  const carregar = () => {
-    fetch('/api/entrada?limit=50')
-      .then((r) => { if (r.status === 401) { router.push('/login'); return null; } return r.json(); })
+  useEffect(() => {
+    const controller = new AbortController();
+    requisitar<Entrada[]>('/api/entrada?limit=50', { signal: controller.signal })
       .then((d) => { if (d) setEntradas(d); })
-      .finally(() => setLoading(false));
-  };
-
-  useEffect(() => { carregar(); }, []);
+      .catch(e => { if (!controller.signal.aborted) setErro(e.message); })
+      .finally(() => { if (!controller.signal.aborted) setLoading(false); });
+    return () => controller.abort();
+  }, []);
 
   const fmtData = (iso: string) =>
-    new Date(iso).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: '2-digit' });
+    new Date(iso).toLocaleDateString('pt-BR', { timeZone: 'UTC', day: '2-digit', month: '2-digit', year: '2-digit' });
 
   return (
     <AppShell
@@ -42,6 +42,7 @@ export default function EntradaPage() {
         </Link>
       }
     >
+      {erro && <p role="alert" className="text-red-700">{erro}</p>}
       {loading ? (
         <div className="space-y-3">
           {[1,2,3].map(i => <div key={i} className="h-24 bg-white rounded-2xl animate-pulse" />)}
@@ -60,7 +61,7 @@ export default function EntradaPage() {
       ) : (
         <div className="space-y-3">
           {entradas.map((e) => (
-            <div key={e.id} className="bg-white rounded-2xl border border-slate-200 shadow-sm p-4">
+            <Link href={`/entrada/${e.id}`} key={e.id} className="block bg-white rounded-2xl border border-slate-200 shadow-sm p-4">
               <div className="flex items-start justify-between">
                 <div>
                   <div className="flex items-center gap-2">
@@ -93,9 +94,9 @@ export default function EntradaPage() {
                 </div>
               )}
               {e.observacao && (
-                <p className="mt-2 text-xs text-slate-500 italic">"{e.observacao}"</p>
+                <p className="mt-2 text-xs text-slate-500 italic">{e.observacao}</p>
               )}
-            </div>
+            </Link>
           ))}
         </div>
       )}

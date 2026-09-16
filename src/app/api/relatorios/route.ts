@@ -1,4 +1,5 @@
 import { prisma } from '@/lib/prisma';
+import { estoqueBaixo } from '@/lib/regras';
 import { getSession } from '@/lib/session';
 import { NextRequest, NextResponse } from 'next/server';
 import { corsMobile, optionsResponse } from '@/lib/cors-mobile';
@@ -112,6 +113,7 @@ export async function GET(req: NextRequest) {
         where: {
           saida: {
             data: { gte: range.inicio, lt: range.fim },
+            status: { not: 'CANCELADO' },
             ...(escolaId ? { escolaId } : {}),
           },
           ...(categoriaId ? { produto: { categoriaId } } : {}),
@@ -239,6 +241,7 @@ export async function GET(req: NextRequest) {
         where: {
           saida: {
             data: { gte: range.inicio, lt: range.fim },
+            status: { not: 'CANCELADO' },
             ...(escolaId ? { escolaId } : {}),
           },
           ...(categoriaId ? { produto: { categoriaId } } : {}),
@@ -296,6 +299,7 @@ export async function GET(req: NextRequest) {
         prisma.saida.findMany({
           where: {
             data: { gte: range.inicio, lt: range.fim },
+            status: { not: 'CANCELADO' },
             ...(escolaId ? { escolaId } : {}),
           },
           select: { data: true, itens: { select: { quantidade: true } } },
@@ -316,17 +320,17 @@ export async function GET(req: NextRequest) {
       for (const e of entradas) {
         const key = toDataKey(e.data);
         if (!porDia.has(key)) porDia.set(key, { data: key, totalEntradas: 0, totalSaidas: 0, totalDescartes: 0 });
-        porDia.get(key)!.totalEntradas += e.itens.reduce((s, i) => s + i.quantidade, 0);
+        porDia.get(key)!.totalEntradas += 1;
       }
       for (const s of saidas) {
         const key = toDataKey(s.data);
         if (!porDia.has(key)) porDia.set(key, { data: key, totalEntradas: 0, totalSaidas: 0, totalDescartes: 0 });
-        porDia.get(key)!.totalSaidas += s.itens.reduce((s, i) => s + i.quantidade, 0);
+        porDia.get(key)!.totalSaidas += 1;
       }
       for (const d of descartes) {
         const key = toDataKey(d.data);
         if (!porDia.has(key)) porDia.set(key, { data: key, totalEntradas: 0, totalSaidas: 0, totalDescartes: 0 });
-        porDia.get(key)!.totalDescartes += d.itens.reduce((s, i) => s + i.quantidade, 0);
+        porDia.get(key)!.totalDescartes += 1;
       }
 
       dados = Array.from(porDia.values()).sort((a, b) => a.data.localeCompare(b.data));
@@ -354,11 +358,11 @@ export async function GET(req: NextRequest) {
         id: p.id,
         nome: p.nome,
         estoqueMinimo: p.estoqueMinimo,
-        categoria: p.categoria,
-        unidade: p.unidade,
+        categoria: p.categoria.nome,
+        unidade: p.unidade.abreviacao,
         quantidade: p.estoque?.quantidade ?? 0,
         atualizadoEm: p.estoque?.updatedAt ?? null,
-        abaixoMinimo: (p.estoque?.quantidade ?? 0) < p.estoqueMinimo,
+        abaixoMinimo: estoqueBaixo(p.estoque?.quantidade ?? 0, p.estoqueMinimo),
       }));
     }
 

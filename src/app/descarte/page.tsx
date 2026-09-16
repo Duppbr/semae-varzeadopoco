@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { requisitar } from '@/lib/http-client';
 import AppShell from '@/components/AppShell';
 import Link from 'next/link';
 import { Plus, Trash2, Calendar } from 'lucide-react';
@@ -17,18 +17,20 @@ const motivoLabels: Record<string, string> = {
 };
 
 export default function DescartePage() {
-  const router = useRouter();
   const [descartes, setDescartes] = useState<Descarte[]>([]);
   const [loading, setLoading] = useState(true);
+  const [erro, setErro] = useState('');
 
   useEffect(() => {
-    fetch('/api/descarte?limit=50')
-      .then(r => { if (r.status === 401) { router.push('/login'); return null; } return r.json(); })
+    const controller = new AbortController();
+    requisitar<Descarte[]>('/api/descarte?limit=50', { signal: controller.signal })
       .then(d => { if (d) setDescartes(d); })
-      .finally(() => setLoading(false));
+      .catch(e => { if (!controller.signal.aborted) setErro(e.message); })
+      .finally(() => { if (!controller.signal.aborted) setLoading(false); });
+    return () => controller.abort();
   }, []);
 
-  const fmtData = (iso: string) => new Date(iso).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: '2-digit' });
+  const fmtData = (iso: string) => new Date(iso).toLocaleDateString('pt-BR', { timeZone: 'UTC', day: '2-digit', month: '2-digit', year: '2-digit' });
 
   return (
     <AppShell title="Descartes"
@@ -38,6 +40,7 @@ export default function DescartePage() {
         </Link>
       }
     >
+      {erro && <p role="alert" className="text-red-700">{erro}</p>}
       {loading ? (
         <div className="space-y-3">{[1,2,3].map(i => <div key={i} className="h-28 bg-white rounded-2xl animate-pulse" />)}</div>
       ) : descartes.length === 0 ? (
@@ -52,7 +55,7 @@ export default function DescartePage() {
       ) : (
         <div className="space-y-3">
           {descartes.map(d => (
-            <div key={d.id} className="bg-white rounded-2xl border border-slate-200 shadow-sm p-4">
+            <Link href={`/descarte/${d.id}`} key={d.id} className="block bg-white rounded-2xl border border-slate-200 shadow-sm p-4">
               <div className="flex items-start justify-between mb-2">
                 <div>
                   <div className="flex items-center gap-2">
@@ -75,8 +78,8 @@ export default function DescartePage() {
                   {d.itens.length > 3 && <p className="text-xs text-slate-400">+ {d.itens.length - 3} produto(s)</p>}
                 </div>
               )}
-              {d.observacao && <p className="mt-2 text-xs text-slate-500 italic">"{d.observacao}"</p>}
-            </div>
+              {d.observacao && <p className="mt-2 text-xs text-slate-500 italic">{d.observacao}</p>}
+            </Link>
           ))}
         </div>
       )}

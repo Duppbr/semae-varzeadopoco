@@ -1,8 +1,10 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState } from 'react';
+import { requisitar } from '@/lib/http-client';
 import { useRouter } from 'next/navigation';
 import AppShell from '@/components/AppShell';
+import { hoje } from '@/lib/regras';
 import { Plus, Trash2, PackagePlus, Search } from 'lucide-react';
 
 interface Produto { id: string; nome: string; unidade: { id: string; abreviacao: string }; categoria: { nome: string; cor: string } }
@@ -13,7 +15,7 @@ export default function NovaEntradaPage() {
   const router = useRouter();
   const [produtos, setProdutos] = useState<Produto[]>([]);
   const [responsaveis, setResponsaveis] = useState<Responsavel[]>([]);
-  const [data, setData] = useState(() => new Date().toISOString().split('T')[0]);
+  const [data, setData] = useState(hoje);
   const [responsavelId, setResponsavelId] = useState('');
   const [fornecedor, setFornecedor] = useState('');
   const [observacao, setObservacao] = useState('');
@@ -24,8 +26,8 @@ export default function NovaEntradaPage() {
   const [erro, setErro] = useState('');
 
   useEffect(() => {
-    fetch('/api/estoque').then(r => r.json()).then(setProdutos);
-    fetch('/api/responsaveis?ativo=true').then(r => r.json()).then(setResponsaveis).catch(() => {});
+    requisitar<Produto[]>('/api/estoque').then(setProdutos).catch(e => setErro(e.message));
+    requisitar<Responsavel[]>('/api/responsaveis?ativo=true').then(setResponsaveis).catch(e => setErro(e.message));
   }, []);
 
   const produtosFiltrados = produtos.filter(p =>
@@ -43,8 +45,8 @@ export default function NovaEntradaPage() {
 
   const salvar = async () => {
     if (itens.length === 0) { setErro('Adicione pelo menos um produto.'); return; }
-    const itensValidos = itens.filter(i => parseFloat(i.quantidade) > 0);
-    if (itensValidos.length === 0) { setErro('Informe a quantidade de pelo menos um produto.'); return; }
+    const itensValidos = itens;
+    if (itens.some(i => !Number.isFinite(Number(i.quantidade)) || Number(i.quantidade) <= 0)) { setErro('Informe quantidade positiva em todos os itens.'); return; }
     setSalvando(true);
     setErro('');
     try {

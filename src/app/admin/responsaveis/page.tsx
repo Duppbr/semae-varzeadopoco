@@ -186,7 +186,6 @@ export default function AdminResponsaveisPage() {
           <div className="flex flex-col items-center justify-center pt-12 text-center">
             <Users size={32} className="text-slate-300 mb-3" />
             <p className="font-semibold text-slate-600">Nenhum responsável cadastrado</p>
-            <p className="text-sm text-slate-400 mt-1">Clique em "Novo" para adicionar</p>
           </div>
         ) : (
           <div className="space-y-3">

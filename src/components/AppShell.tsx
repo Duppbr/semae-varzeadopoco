@@ -36,7 +36,7 @@ export default function AppShell({ children, title, backHref, actions, noPadding
           </button>
         )}
 
-        <div className="flex-1">
+        <div className="flex-1 min-w-0">
           <h1 className="font-bold text-slate-900 text-base leading-tight truncate">{title}</h1>
         </div>
 

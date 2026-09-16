@@ -1,10 +1,10 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
 import AppShell from '@/components/AppShell';
 import Link from 'next/link';
 import { Plus, ShoppingCart, Calendar } from 'lucide-react';
+import { requisitar } from '@/lib/http-client';
 
 interface PedidoCompra {
   id: string;
@@ -13,17 +13,21 @@ interface PedidoCompra {
   status: string;
   escola: { nome: string };
   responsavel: { nome: string } | null;
-  itens: { quantidade: number; produto: { nome: string }; unidade: { abreviacao: string } }[];
+  itens: { quantidade: number; descricao: string | null; produto: { nome: string } | null; unidade: { abreviacao: string } }[];
 }
 
 const statusColors: Record<string, string> = {
+  PENDENTE: 'bg-slate-100 text-slate-700 border-slate-200',
+  PARCIAL: 'bg-yellow-100 text-yellow-800 border-yellow-200',
   RASCUNHO: 'bg-slate-100 text-slate-700 border-slate-200',
   ENVIADO: 'bg-blue-100 text-blue-800 border-blue-200',
   ATENDIDO: 'bg-green-100 text-green-800 border-green-200',
   CANCELADO: 'bg-red-100 text-red-800 border-red-200',
 };
 const statusLabels: Record<string, string> = {
-  RASCUNHO: 'Rascunho',
+  RASCUNHO: 'Pedido pendente',
+  PENDENTE: 'Pedido pendente',
+  PARCIAL: 'Recebido parcialmente',
   ENVIADO: 'Enviado',
   ATENDIDO: 'Atendido',
   CANCELADO: 'Cancelado',
@@ -31,32 +35,31 @@ const statusLabels: Record<string, string> = {
 
 const filtros = [
   { label: 'Todos', value: '' },
-  { label: 'Rascunho', value: 'RASCUNHO' },
+  { label: 'Pendentes', value: 'PENDENTE' },
+  { label: 'Parciais', value: 'PARCIAL' },
   { label: 'Enviado', value: 'ENVIADO' },
   { label: 'Atendido', value: 'ATENDIDO' },
   { label: 'Cancelado', value: 'CANCELADO' },
 ];
 
 export default function PedidoCompraPage() {
-  const router = useRouter();
   const [pedidos, setPedidos] = useState<PedidoCompra[]>([]);
   const [loading, setLoading] = useState(true);
   const [filtroStatus, setFiltroStatus] = useState('');
+  const [erro, setErro] = useState('');
 
   useEffect(() => {
-    setLoading(true);
+    const controller = new AbortController();
     const qs = filtroStatus ? `?status=${filtroStatus}` : '';
-    fetch(`/api/pedido-compra${qs}`)
-      .then(r => {
-        if (r.status === 401) { router.push('/login'); return null; }
-        return r.json();
-      })
+    requisitar<PedidoCompra[]>(`/api/pedido-compra${qs}`, { signal: controller.signal })
       .then(d => { if (d) setPedidos(d); })
-      .finally(() => setLoading(false));
+      .catch(e => { if (!controller.signal.aborted) setErro(e.message); })
+      .finally(() => { if (!controller.signal.aborted) setLoading(false); });
+    return () => controller.abort();
   }, [filtroStatus]);
 
   const fmtData = (iso: string) =>
-    new Date(iso).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: '2-digit' });
+    new Date(iso).toLocaleDateString('pt-BR', { timeZone: 'UTC', day: '2-digit', month: '2-digit', year: '2-digit' });
 
   return (
     <AppShell
@@ -70,12 +73,13 @@ export default function PedidoCompraPage() {
         </Link>
       }
     >
+      {erro && <p role="alert" className="text-red-700">{erro}</p>}
       {/* Filtros */}
       <div className="flex gap-2 mb-4 overflow-x-auto pb-1">
         {filtros.map(f => (
           <button
             key={f.value}
-            onClick={() => setFiltroStatus(f.value)}
+            onClick={() => { if (f.value !== filtroStatus) { setLoading(true); setErro(''); setFiltroStatus(f.value); } }}
             className={`shrink-0 text-xs font-semibold px-3 py-2 rounded-full border transition-colors ${
               filtroStatus === f.value
                 ? 'bg-slate-900 text-white border-slate-900'
@@ -145,7 +149,7 @@ export default function PedidoCompraPage() {
                 <div className="mt-3 pt-3 border-t border-slate-100 space-y-1">
                   {p.itens.slice(0, 2).map((it, i) => (
                     <div key={i} className="flex justify-between text-xs">
-                      <span className="text-slate-600 truncate">{it.produto.nome}</span>
+                      <span className="text-slate-600 truncate">{it.produto?.nome || it.descricao}</span>
                       <span className="font-medium text-slate-900 ml-2 shrink-0">
                         {it.quantidade} {it.unidade.abreviacao}
                       </span>

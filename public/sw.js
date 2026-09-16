@@ -1,4 +1,4 @@
-const CACHE = 'semae-v1';
+const CACHE = 'semae-v2-public-only';
 
 // Alteracao: service worker limpo para SEMAE, sem rotas antigas de consulta/Rios Baterias.
 const SHELL = [
@@ -44,9 +44,18 @@ self.addEventListener('fetch', (event) => {
   event.respondWith(
     fetch(req)
       .then((res) => {
-        if (res.ok) caches.open(CACHE).then((cache) => cache.put(req, res.clone()));
+        // Nao persiste paginas autenticadas/PDFs: vazavam dados apos sair da conta.
+        if (res.ok && SHELL.includes(url.pathname)) {
+          const copy = res.clone();
+          event.waitUntil(caches.open(CACHE).then((cache) => cache.put(req, copy)).catch(() => {}));
+        }
         return res;
       })
-      .catch(() => caches.match(req).then((cached) => cached || caches.match('/offline.html')))
+      .catch(async () => {
+        const cached = await caches.match(req);
+        if (cached) return cached;
+        if (req.mode === 'navigate') return (await caches.match('/offline.html')) || Response.error();
+        return Response.error();
+      })
   );
 });

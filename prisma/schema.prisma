@@ -88,6 +88,9 @@ model Entrada {
   updatedAt     DateTime      @updatedAt
   responsavel   Responsavel?  @relation(fields: [responsavelId], references: [id])
   itens         ItemEntrada[]
+  pedidoId      String?
+  pedido        PedidoCompra? @relation(fields: [pedidoId], references: [id], onDelete: Restrict)
+  chaveOperacao String?       @unique
 }
 
 model ItemEntrada {
@@ -165,17 +168,44 @@ model PedidoCompra {
   escola        Escola?      @relation(fields: [escolaId], references: [id])
   responsavel   Responsavel? @relation(fields: [responsavelId], references: [id])
   itens         ItemPedido[]
+  entradas      Entrada[]
 }
 
 model ItemPedido {
   id          String        @id @default(cuid())
   pedidoId    String
-  produtoId   String
+  produtoId   String?
+  descricao   String?
+  recebido    Float         @default(0)
+  cancelado   Float         @default(0)
   quantidade  Float
   unidadeId   String
   pedido      PedidoCompra  @relation(fields: [pedidoId], references: [id], onDelete: Cascade)
-  produto     Produto       @relation(fields: [produtoId], references: [id])
+  produto     Produto?      @relation(fields: [produtoId], references: [id])
   unidade     UnidadeMedida @relation(fields: [unidadeId], references: [id])
+}
+
+// Historico imutavel: snapshots sobrevivem a exclusao do documento original.
+model MovimentoEstoque {
+  id           String   @id @default(cuid())
+  produtoId    String
+  produtoNome  String
+  unidade      String
+  quantidade   Float
+  saldo        Float?
+  chaveOrigem  String?  @unique
+  tipo         String
+  origemId     String
+  numero       Int?
+  pedidoId     String?
+  data         DateTime
+  motivo       String?
+  usuarioNome  String
+  createdAt    DateTime @default(now())
+
+  @@index([produtoId, createdAt])
+  @@index([origemId])
+  @@index([pedidoId])
 }
 
 model Usuario {

@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { requisitar } from '@/lib/http-client';
 import AppShell from '@/components/AppShell';
 import Link from 'next/link';
 import { Plus, PackageMinus, Calendar } from 'lucide-react';
@@ -21,22 +21,22 @@ const statusColors: Record<string, string> = {
 const statusLabels: Record<string, string> = { PENDENTE: 'Pendente', ENTREGUE: 'Entregue', CANCELADO: 'Cancelado' };
 
 export default function SaidaPage() {
-  const router = useRouter();
   const [saidas, setSaidas] = useState<Saida[]>([]);
   const [loading, setLoading] = useState(true);
   const [filtroStatus, setFiltroStatus] = useState('');
+  const [erro, setErro] = useState('');
 
-  const carregar = () => {
+  useEffect(() => {
+    const controller = new AbortController();
     const qs = filtroStatus ? `?status=${filtroStatus}&limit=50` : '?limit=50';
-    fetch(`/api/saida${qs}`)
-      .then(r => { if (r.status === 401) { router.push('/login'); return null; } return r.json(); })
+    requisitar<Saida[]>(`/api/saida${qs}`, { signal: controller.signal })
       .then(d => { if (d) setSaidas(d); })
-      .finally(() => setLoading(false));
-  };
+      .catch(e => { if (!controller.signal.aborted) setErro(e.message); })
+      .finally(() => { if (!controller.signal.aborted) setLoading(false); });
+    return () => controller.abort();
+  }, [filtroStatus]);
 
-  useEffect(() => { setLoading(true); carregar(); }, [filtroStatus]);
-
-  const fmtData = (iso: string) => new Date(iso).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: '2-digit' });
+  const fmtData = (iso: string) => new Date(iso).toLocaleDateString('pt-BR', { timeZone: 'UTC', day: '2-digit', month: '2-digit', year: '2-digit' });
 
   return (
     <AppShell title="Saídas"
@@ -46,10 +46,11 @@ export default function SaidaPage() {
         </Link>
       }
     >
+      {erro && <p role="alert" className="text-red-700">{erro}</p>}
       {/* Filtros */}
       <div className="flex gap-2 mb-4 overflow-x-auto pb-1">
         {['', 'PENDENTE', 'ENTREGUE', 'CANCELADO'].map(s => (
-          <button key={s} onClick={() => setFiltroStatus(s)}
+          <button key={s} onClick={() => { if (s !== filtroStatus) { setLoading(true); setFiltroStatus(s); } }}
             className={`shrink-0 text-xs font-semibold px-3 py-2 rounded-full border transition-colors ${filtroStatus === s ? 'bg-slate-900 text-white border-slate-900' : 'bg-white text-slate-600 border-slate-200'}`}>
             {s === '' ? 'Todas' : statusLabels[s]}
           </button>

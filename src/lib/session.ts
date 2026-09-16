@@ -1,5 +1,6 @@
 import { getIronSession, SessionOptions } from 'iron-session';
 import { cookies } from 'next/headers';
+import { prisma } from '@/lib/prisma';
 
 export interface SessionData {
   userId: string;
@@ -24,5 +25,13 @@ export async function getSession() {
     },
   };
   const cookieStore = await cookies();
-  return getIronSession<SessionData>(cookieStore, options);
+  const session = await getIronSession<SessionData>(cookieStore, options);
+  // Revoga acesso desativado e atualiza permissoes sem depender da expiracao do cookie.
+  if (session.isLoggedIn) {
+    const usuario = session.userId ? await prisma.usuario.findUnique({ where: { id: session.userId },
+      select: { ativo: true, nome: true, role: true, protegido: true, identificador: true } }) : null;
+    if (!usuario?.ativo) session.isLoggedIn = false;
+    else Object.assign(session, { nome: usuario.nome, role: usuario.role, protegido: usuario.protegido, identificador: usuario.identificador });
+  }
+  return session;
 }

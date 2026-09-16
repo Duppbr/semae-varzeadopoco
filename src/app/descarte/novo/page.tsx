@@ -3,6 +3,8 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import AppShell from '@/components/AppShell';
+import { requisitar } from '@/lib/http-client';
+import { hoje } from '@/lib/regras';
 import { Plus, Trash2, Search } from 'lucide-react';
 
 interface Produto { id: string; nome: string; unidade: { id: string; abreviacao: string }; categoria: { nome: string }; estoque: { quantidade: number } | null }
@@ -21,7 +23,7 @@ export default function NovoDescartePage() {
   const router = useRouter();
   const [produtos, setProdutos] = useState<Produto[]>([]);
   const [responsaveis, setResponsaveis] = useState<Responsavel[]>([]);
-  const [data, setData] = useState(() => new Date().toISOString().split('T')[0]);
+  const [data, setData] = useState(hoje);
   const [motivo, setMotivo] = useState('');
   const [responsavelId, setResponsavelId] = useState('');
   const [observacao, setObservacao] = useState('');
@@ -32,8 +34,8 @@ export default function NovoDescartePage() {
   const [erro, setErro] = useState('');
 
   useEffect(() => {
-    fetch('/api/estoque').then(r => r.json()).then(setProdutos);
-    fetch('/api/responsaveis?ativo=true').then(r => r.json()).catch(() => []).then(setResponsaveis);
+    requisitar<Produto[]>('/api/estoque').then(setProdutos).catch(e => setErro(e.message));
+    requisitar<Responsavel[]>('/api/responsaveis?ativo=true').then(setResponsaveis).catch(e => setErro(e.message));
   }, []);
 
   const produtosFiltrados = produtos.filter(p =>
@@ -50,8 +52,8 @@ export default function NovoDescartePage() {
 
   const salvar = async () => {
     if (!motivo) { setErro('Selecione o motivo do descarte.'); return; }
-    const itensValidos = itens.filter(i => parseFloat(i.quantidade) > 0);
-    if (itensValidos.length === 0) { setErro('Adicione pelo menos um produto com quantidade.'); return; }
+    const itensValidos = itens;
+    if (!itens.length || itens.some(i => !Number.isFinite(Number(i.quantidade)) || Number(i.quantidade) <= 0)) { setErro('Informe quantidade positiva em todos os itens.'); return; }
     setSalvando(true); setErro('');
     try {
       const res = await fetch('/api/descarte', {

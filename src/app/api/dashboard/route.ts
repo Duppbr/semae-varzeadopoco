@@ -1,4 +1,5 @@
 import { prisma } from '@/lib/prisma';
+import { estoqueBaixo, hoje } from '@/lib/regras';
 import { getSession } from '@/lib/session';
 import { NextRequest, NextResponse } from 'next/server';
 import { corsMobile, optionsResponse } from '@/lib/cors-mobile';
@@ -13,11 +14,10 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ erro: 'Não autorizado.' }, { status: 401, headers: corsMobile(req) });
 
   try {
-    const agora = new Date();
-    const inicioDia = new Date(agora.getFullYear(), agora.getMonth(), agora.getDate());
+    const inicioDia = new Date(`${hoje()}T00:00:00.000Z`);
     const fimDia = new Date(inicioDia.getTime() + 24 * 60 * 60 * 1000);
-    const inicioMes = new Date(agora.getFullYear(), agora.getMonth(), 1);
-    const fimMes = new Date(agora.getFullYear(), agora.getMonth() + 1, 1);
+    const inicioMes = new Date(Date.UTC(inicioDia.getUTCFullYear(), inicioDia.getUTCMonth(), 1));
+    const fimMes = new Date(Date.UTC(inicioDia.getUTCFullYear(), inicioDia.getUTCMonth() + 1, 1));
 
     const [
       totalProdutos,
@@ -30,18 +30,18 @@ export async function GET(req: NextRequest) {
     ] = await Promise.all([
       prisma.produto.count({ where: { ativo: true } }),
 
-      prisma.estoque.findMany({ select: { quantidade: true } }),
+      prisma.estoque.findMany({ where: { produto: { ativo: true } }, select: { quantidade: true } }),
 
       prisma.entrada.count({
-        where: { createdAt: { gte: inicioDia, lt: fimDia } },
+        where: { data: { gte: inicioDia, lt: fimDia } },
       }),
 
       prisma.saida.count({
-        where: { createdAt: { gte: inicioDia, lt: fimDia } },
+        where: { data: { gte: inicioDia, lt: fimDia }, status: { not: 'CANCELADO' } },
       }),
 
       prisma.descarte.count({
-        where: { createdAt: { gte: inicioMes, lt: fimMes } },
+        where: { data: { gte: inicioMes, lt: fimMes } },
       }),
 
       prisma.saida.findMany({
@@ -69,17 +69,18 @@ export async function GET(req: NextRequest) {
       }),
     ]);
 
-    const totalEstoque = estoques.reduce((acc, e) => acc + e.quantidade, 0);
+    // Nao soma quilogramas com litros/unidades como se fossem a mesma grandeza.
+    const produtosComSaldo = estoques.filter(e => e.quantidade > 0).length;
 
     const produtosAbaixoMinimo = alertasEstoque.filter((p) => {
       const qtd = p.estoque?.quantidade ?? 0;
-      return qtd < p.estoqueMinimo;
+      return estoqueBaixo(qtd, p.estoqueMinimo);
     }).length;
 
     const alertasFiltrados = alertasEstoque
       .filter((p) => {
         const qtd = p.estoque?.quantidade ?? 0;
-        return qtd < p.estoqueMinimo;
+        return estoqueBaixo(qtd, p.estoqueMinimo);
       })
       .map((p) => ({
         id: p.id,
@@ -92,7 +93,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json(
       {
         totalProdutos,
-        totalEstoque,
+        produtosComSaldo,
         produtosAbaixoMinimo,
         entradasHoje,
         saidasHoje,

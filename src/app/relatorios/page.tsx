@@ -1,8 +1,9 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
-import { useRouter } from 'next/navigation';
+import { useEffect, useState } from 'react';
 import AppShell from '@/components/AppShell';
+import { requisitar } from '@/lib/http-client';
+import { estoqueBaixo } from '@/lib/regras';
 import {
   BarChart2,
   PackageMinus,
@@ -13,10 +14,15 @@ import {
   AlertTriangle,
 } from 'lucide-react';
 
+interface LinhaRelatorio {
+  nome?: string; produto?: string; unidade?: string; categoria?: string; tipo?: string; escola?: string;
+  total?: number; quantidade?: number; estoque?: number; estoqueMinimo?: number; minimo?: number; abreviacao?: string;
+  totalEntradas?: number; totalSaidas?: number; totalDescartes?: number;
+}
 interface RelatorioData {
   tipo: string;
   periodo: string;
-  dados: any[];
+  dados: LinhaRelatorio[];
 }
 
 const periodos = [
@@ -53,7 +59,7 @@ const tiposRelatorio = [
   {
     value: 'produtos-mais-comprados',
     label: 'Produtos Mais Comprados',
-    descricao: 'Ranking de pedidos de compra',
+    descricao: 'Ranking de produtos recebidos',
     icon: ShoppingCart,
     cor: 'text-purple-600 bg-purple-50',
   },
@@ -83,30 +89,30 @@ function SkeletonCard() {
   );
 }
 
-function MovimentacaoResult({ dados }: { dados: any[] }) {
-  const item = dados[0] || {};
+function MovimentacaoResult({ dados }: { dados: LinhaRelatorio[] }) {
+  const item = dados.reduce((s, d) => ({ entradas: s.entradas + (d.totalEntradas ?? 0), saidas: s.saidas + (d.totalSaidas ?? 0), descartes: s.descartes + (d.totalDescartes ?? 0) }), { entradas: 0, saidas: 0, descartes: 0 });
   return (
     <div className="grid grid-cols-3 gap-3">
       <div className="bg-white rounded-2xl border border-green-200 p-4 text-center shadow-sm">
         <p className="text-xs text-green-600 font-semibold uppercase mb-1">Entradas</p>
         <p className="text-3xl font-bold text-green-700">{item.entradas ?? 0}</p>
-        <p className="text-xs text-slate-500 mt-1">itens</p>
+        <p className="text-xs text-slate-500 mt-1">registros</p>
       </div>
       <div className="bg-white rounded-2xl border border-orange-200 p-4 text-center shadow-sm">
         <p className="text-xs text-orange-600 font-semibold uppercase mb-1">Saídas</p>
         <p className="text-3xl font-bold text-orange-600">{item.saidas ?? 0}</p>
-        <p className="text-xs text-slate-500 mt-1">itens</p>
+        <p className="text-xs text-slate-500 mt-1">registros</p>
       </div>
       <div className="bg-white rounded-2xl border border-red-200 p-4 text-center shadow-sm">
         <p className="text-xs text-red-600 font-semibold uppercase mb-1">Descartes</p>
         <p className="text-3xl font-bold text-red-600">{item.descartes ?? 0}</p>
-        <p className="text-xs text-slate-500 mt-1">itens</p>
+        <p className="text-xs text-slate-500 mt-1">registros</p>
       </div>
     </div>
   );
 }
 
-function RankingList({ dados, unidadeKey = 'unidade' }: { dados: any[]; unidadeKey?: string }) {
+function RankingList({ dados }: { dados: LinhaRelatorio[] }) {
   if (dados.length === 0) {
     return (
       <div className="bg-white rounded-2xl border border-slate-200 p-8 text-center">
@@ -115,10 +121,10 @@ function RankingList({ dados, unidadeKey = 'unidade' }: { dados: any[]; unidadeK
       </div>
     );
   }
-  const max = Math.max(...dados.map((d: any) => d.total ?? d.quantidade ?? 0));
+  const max = Math.max(...dados.map(d => d.total ?? d.quantidade ?? 0));
   return (
     <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-      {dados.map((d: any, idx: number) => {
+      {dados.map((d, idx) => {
         const val = d.total ?? d.quantidade ?? 0;
         const pct = max > 0 ? (val / max) * 100 : 0;
         return (
@@ -127,8 +133,8 @@ function RankingList({ dados, unidadeKey = 'unidade' }: { dados: any[]; unidadeK
               <span className="text-xs font-bold text-slate-400 w-5 shrink-0">{idx + 1}.</span>
               <div className="flex-1 min-w-0">
                 <p className="font-medium text-slate-900 text-sm truncate">{d.nome || d.produto}</p>
-                {d[unidadeKey] && (
-                  <p className="text-xs text-slate-500">{d[unidadeKey]}</p>
+                {d.unidade && (
+                  <p className="text-xs text-slate-500">{d.unidade}</p>
                 )}
                 <div className="mt-1.5 h-1.5 bg-slate-100 rounded-full overflow-hidden">
                   <div
@@ -146,7 +152,7 @@ function RankingList({ dados, unidadeKey = 'unidade' }: { dados: any[]; unidadeK
   );
 }
 
-function EscolaList({ dados }: { dados: any[] }) {
+function EscolaList({ dados }: { dados: LinhaRelatorio[] }) {
   if (dados.length === 0) {
     return (
       <div className="bg-white rounded-2xl border border-slate-200 p-8 text-center">
@@ -157,15 +163,15 @@ function EscolaList({ dados }: { dados: any[] }) {
   }
   return (
     <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-      {dados.map((d: any, idx: number) => (
+      {dados.map((d, idx) => (
         <div key={idx} className="px-4 py-3 border-b border-slate-100 last:border-0 flex items-center justify-between">
           <div>
             <p className="font-medium text-slate-900 text-sm">{d.escola || d.nome}</p>
             {d.tipo && <p className="text-xs text-slate-500">{d.tipo}</p>}
           </div>
           <div className="text-right">
-            <span className="font-bold text-slate-900 text-sm">{d.total ?? d.quantidade ?? 0}</span>
-            <p className="text-xs text-slate-500">itens</p>
+            <span className="font-bold text-slate-900 text-sm">{d.totalSaidas ?? 0}</span>
+            <p className="text-xs text-slate-500">saídas</p>
           </div>
         </div>
       ))}
@@ -173,7 +179,7 @@ function EscolaList({ dados }: { dados: any[] }) {
   );
 }
 
-function EstoqueTable({ dados }: { dados: any[] }) {
+function EstoqueTable({ dados }: { dados: LinhaRelatorio[] }) {
   if (dados.length === 0) {
     return (
       <div className="bg-white rounded-2xl border border-slate-200 p-8 text-center">
@@ -184,10 +190,10 @@ function EstoqueTable({ dados }: { dados: any[] }) {
   }
   return (
     <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-      {dados.map((d: any, idx: number) => {
+      {dados.map((d, idx) => {
         const qtd = d.quantidade ?? d.estoque ?? 0;
         const minimo = d.estoqueMinimo ?? d.minimo ?? 0;
-        const baixo = qtd <= minimo && minimo > 0;
+        const baixo = estoqueBaixo(qtd, minimo);
         return (
           <div
             key={idx}
@@ -214,30 +220,19 @@ function EstoqueTable({ dados }: { dados: any[] }) {
 }
 
 export default function RelatoriosPage() {
-  const router = useRouter();
   const [periodo, setPeriodo] = useState('mes');
   const [tipo, setTipo] = useState('movimentacao-periodo');
   const [resultado, setResultado] = useState<RelatorioData | null>(null);
-  const [loading, setLoading] = useState(false);
-
-  const buscarRelatorio = useCallback(async () => {
-    setLoading(true);
-    setResultado(null);
-    try {
-      const res = await fetch(`/api/relatorios?tipo=${tipo}&periodo=${periodo}`);
-      if (res.status === 401) { router.push('/login'); return; }
-      if (res.ok) {
-        const d = await res.json();
-        setResultado(d);
-      }
-    } finally {
-      setLoading(false);
-    }
-  }, [tipo, periodo, router]);
+  const [loading, setLoading] = useState(true);
+  const [erro, setErro] = useState('');
 
   useEffect(() => {
-    buscarRelatorio();
-  }, [buscarRelatorio]);
+    const controller = new AbortController();
+    requisitar<RelatorioData>(`/api/relatorios?tipo=${tipo}&periodo=${periodo}`, { signal: controller.signal })
+      .then(setResultado).catch(e => { if (!controller.signal.aborted) setErro(e.message); })
+      .finally(() => { if (!controller.signal.aborted) setLoading(false); });
+    return () => controller.abort();
+  }, [tipo, periodo]);
 
   const renderResultado = () => {
     if (!resultado || !resultado.dados) return null;
@@ -273,6 +268,7 @@ export default function RelatoriosPage() {
 
   return (
     <AppShell title="Relatórios">
+      {erro && <p role="alert" className="text-red-700">{erro}</p>}
       <div className="space-y-4">
         {/* Seletor de período */}
         <div className="bg-white rounded-2xl border border-slate-200 p-4 shadow-sm">
@@ -281,7 +277,7 @@ export default function RelatoriosPage() {
             {periodos.map(p => (
               <button
                 key={p.value}
-                onClick={() => setPeriodo(p.value)}
+                onClick={() => { if (p.value !== periodo) { setLoading(true); setErro(''); setPeriodo(p.value); } }}
                 className={`text-sm font-semibold px-3 py-2 rounded-xl border transition-colors ${
                   periodo === p.value
                     ? 'bg-blue-600 text-white border-blue-600'
@@ -301,7 +297,7 @@ export default function RelatoriosPage() {
             {tiposRelatorio.map(t => (
               <button
                 key={t.value}
-                onClick={() => setTipo(t.value)}
+                onClick={() => { if (t.value !== tipo) { setLoading(true); setErro(''); setTipo(t.value); } }}
                 className={`flex items-start gap-3 p-3 rounded-xl border text-left transition-colors ${
                   tipo === t.value
                     ? 'border-blue-500 bg-blue-50'
