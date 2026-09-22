@@ -53,8 +53,13 @@ export async function criarMovimento(tipo: TipoMovimento, valor: unknown, sessio
     if (responsavelId && !await tx.responsavel.findFirst({ where: { id: responsavelId, ativo: true } })) throw new ErroValidacao('Responsavel invalido.');
     const comum = { data, responsavelId, observacao, itens: { create: itens } };
     let documento;
-    if (tipo === 'entrada') documento = await tx.entrada.create({ data: { ...comum, fornecedor: texto(b.fornecedor, 'fornecedor') }, include: incluirItens });
-    else if (tipo === 'saida') {
+    if (tipo === 'entrada') {
+      const fornecedorId = texto(b.fornecedorId, 'fornecedor', false, 100) || null;
+      if (fornecedorId && !await tx.fornecedor.findFirst({ where: { id: fornecedorId, ativo: true } })) throw new ErroValidacao('Fornecedor invalido.');
+      // fornecedorNome so sobrevive das entradas antigas, digitadas antes do cadastro existir.
+      documento = await tx.entrada.create({ data: { ...comum, fornecedorId, fornecedorNome: texto(b.fornecedor, 'fornecedor') || null },
+        include: { ...incluirItens, fornecedor: true } });
+    } else if (tipo === 'saida') {
       const escolaId = texto(b.escolaId, 'escola', true, 100);
       if (!await tx.escola.findFirst({ where: { id: escolaId, ativo: true } })) throw new ErroValidacao('Escola invalida.');
       documento = await tx.saida.create({ data: { ...comum, escolaId, recebedor: texto(b.recebedor, 'recebedor') }, include: incluirItens });
@@ -67,7 +72,7 @@ export async function criarMovimento(tipo: TipoMovimento, valor: unknown, sessio
 }
 
 export async function buscarMovimento(tipo: TipoMovimento, id: string) {
-  if (tipo === 'entrada') return prisma.entrada.findUnique({ where: { id }, include: { ...incluirItens, pedido: { select: { id: true, numero: true } } } });
+  if (tipo === 'entrada') return prisma.entrada.findUnique({ where: { id }, include: { ...incluirItens, fornecedor: true, pedido: { select: { id: true, numero: true } } } });
   if (tipo === 'saida') return prisma.saida.findUnique({ where: { id }, include: { ...incluirItens, escola: true } });
   return prisma.descarte.findUnique({ where: { id }, include: incluirItens });
 }

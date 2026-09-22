@@ -2,16 +2,17 @@
 import { useEffect, useRef, useState } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
-import { PackagePlus, Printer, Send, Trash2, XCircle, Calendar, School, User, FileText, ChevronRight } from 'lucide-react';
+import { PackagePlus, Printer, Send, Trash2, XCircle, Calendar, School, User, FileText, ChevronRight, Truck } from 'lucide-react';
 import AppShell from '@/components/AppShell';
 import Historico from '@/components/Historico';
 import { requisitar } from '@/lib/http-client';
 import { formatarData, hoje, pendente, statusPedido } from '@/lib/regras';
 
 interface Item { id: string; produtoId: string | null; descricao: string | null; unidadeId: string; quantidade: number; recebido: number; cancelado: number; produto: { nome: string } | null; unidade: { abreviacao: string } }
-interface Pedido { id: string; numero: number; data: string; status: string; observacao: string | null; escola: { nome: string } | null; responsavel: { nome: string } | null; itens: Item[]; entradas: { id: string; numero: number; data: string }[] }
+interface Pedido { id: string; numero: number; data: string; status: string; observacao: string | null; escola: { nome: string } | null; responsavel: { nome: string } | null; fornecedor: Fornecedor | null; itens: Item[]; entradas: { id: string; numero: number; data: string }[] }
 interface Linha { id: string; produtoId: string; quantidade: string; encerrar: boolean; selecionado: boolean }
 interface Produto { id: string; nome: string; unidade: { id: string } }
+interface Fornecedor { id: string; nome: string; cnpj?: string | null; telefone?: string | null; email?: string | null; contato?: string | null }
 
 const statusCor: Record<string, string> = {
   RASCUNHO: 'bg-slate-100 text-slate-700 border-slate-200',
@@ -32,7 +33,8 @@ export default function Page() {
   const [recebendo, setRecebendo] = useState(false);
   const [linhas, setLinhas] = useState<Linha[]>([]);
   const [data, setData] = useState(hoje);
-  const [fornecedor, setFornecedor] = useState('');
+  const [fornecedorId, setFornecedorId] = useState('');
+  const [fornecedores, setFornecedores] = useState<Fornecedor[]>([]);
   const [observacao, setObservacao] = useState('');
   const tentativa = useRef<{ payload: string; chave: string } | null>(null);
   useEffect(() => {
@@ -53,6 +55,8 @@ export default function Page() {
     setOcupado(true); setErro('');
     try {
       setProdutos(await requisitar<Produto[]>('/api/estoque'));
+      setFornecedores(await requisitar<Fornecedor[]>('/api/fornecedores?ativo=true'));
+      setFornecedorId(pedido.fornecedor?.id || '');
       setLinhas(pedido.itens.filter(i => pendente(i) > 0).map(i => ({ id: i.id, produtoId: i.produtoId || '', quantidade: String(pendente(i)), encerrar: false, selecionado: true })));
       setRecebendo(true);
     } catch (e) { setErro(e instanceof Error ? e.message : 'Falha ao carregar produtos.'); }
@@ -65,7 +69,7 @@ export default function Page() {
     if (!escolhidas.length || escolhidas.some(l => l.quantidade.trim() === '' || !Number.isFinite(Number(l.quantidade)) || Number(l.quantidade) < 0)) {
       setErro('Selecione itens e confira as quantidades.'); return;
     }
-    const payload = JSON.stringify({ data, fornecedor, observacao, itens: escolhidas.map(l => ({ id: l.id, produtoId: l.produtoId, quantidade: Number(l.quantidade), encerrar: l.encerrar })) });
+    const payload = JSON.stringify({ data, fornecedorId, observacao, itens: escolhidas.map(l => ({ id: l.id, produtoId: l.produtoId, quantidade: Number(l.quantidade), encerrar: l.encerrar })) });
     // Mantem a chave em retries da mesma confirmacao, inclusive quando a resposta se perde.
     if (tentativa.current?.payload !== payload) tentativa.current = { payload, chave: crypto.randomUUID() };
     setOcupado(true); setErro('');
@@ -101,6 +105,17 @@ export default function Page() {
           <Calendar size={18} className="text-slate-400 shrink-0" />
           <div><p className="text-xs text-slate-500">Data</p><p className="font-medium text-slate-900">{formatarData(pedido.data)}</p></div>
         </div>
+        {pedido.fornecedor && <div className="p-4 flex items-center gap-3 border-t border-slate-100">
+          <Truck size={18} className="text-indigo-500 shrink-0" />
+          <div>
+            <p className="text-xs text-slate-500">Fornecedor</p>
+            <p className="font-medium text-slate-900">{pedido.fornecedor.nome}</p>
+            {pedido.fornecedor.cnpj && <p className="text-xs text-slate-500">CNPJ: {pedido.fornecedor.cnpj}</p>}
+            {pedido.fornecedor.contato && <p className="text-xs text-slate-500">Contato: {pedido.fornecedor.contato}</p>}
+            {pedido.fornecedor.telefone && <p className="text-xs text-slate-500">{pedido.fornecedor.telefone}</p>}
+            {pedido.fornecedor.email && <p className="text-xs text-slate-500">{pedido.fornecedor.email}</p>}
+          </div>
+        </div>}
         <div className="p-4 flex items-center gap-3 border-t border-slate-100">
           <School size={18} className="text-blue-500 shrink-0" />
           <div><p className="text-xs text-slate-500">Escola / Destino</p><p className="font-medium text-slate-900">{pedido.escola?.nome || 'Geral / SEMAE'}</p></div>
@@ -132,7 +147,10 @@ export default function Page() {
       </div> : <div className="bg-white rounded-2xl border border-slate-200 p-4 shadow-sm space-y-4">
         <h2 className="font-semibold text-slate-800 flex items-center gap-2"><PackagePlus size={16} className="text-green-600" /> Conferência do recebimento</h2>
         <label className="block text-sm font-medium text-slate-600">Data<input type="date" value={data} onChange={e => setData(e.target.value)} className={`${inputCls} mt-1`} /></label>
-        <label className="block text-sm font-medium text-slate-600">Fornecedor<input value={fornecedor} onChange={e => setFornecedor(e.target.value)} className={`${inputCls} mt-1`} /></label>
+        <label className="block text-sm font-medium text-slate-600">Fornecedor<select value={fornecedorId} onChange={e => setFornecedorId(e.target.value)} className={`${inputCls} mt-1`}>
+          <option value="">Selecionar fornecedor</option>
+          {fornecedores.map(f => <option key={f.id} value={f.id}>{f.nome}</option>)}
+        </select></label>
         <fieldset disabled={ocupado} className="space-y-3">
           {linhas.map(l => {
             const i = pedido.itens.find(i => i.id === l.id)!;

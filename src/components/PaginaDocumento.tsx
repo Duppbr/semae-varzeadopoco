@@ -14,7 +14,9 @@ export default async function PaginaDocumento({ tipo, id }: { tipo: TipoMoviment
   const nome = { entrada: 'Entrada', saida: 'Saída', descarte: 'Descarte', 'pedido-compra': 'Pedido de compra' }[tipo];
   const campos: Documento['campos'] = [['Data', formatarData(doc.data)], ['Responsável', doc.responsavel?.nome || '-']];
   if ('escola' in doc) campos.push(['Destino', doc.escola?.nome || 'Geral / SEMAE']);
-  if ('fornecedor' in doc) campos.push(['Fornecedor', doc.fornecedor || '-']);
+  const fornecedor = ('fornecedor' in doc && doc.fornecedor?.nome) || ('fornecedorNome' in doc && doc.fornecedorNome) || '';
+  // Dado em branco nao vira linha vazia no documento enviado ao fornecedor.
+  if (fornecedor) campos.push(['Fornecedor', fornecedor]);
   if ('recebedor' in doc) campos.push(['Recebedor', doc.recebedor || '-']);
   if ('motivo' in doc) campos.push(['Motivo', doc.motivo]);
   if ('status' in doc) campos.push(['Status', tipo === 'pedido-compra' ? statusPedido[doc.status] || doc.status : doc.status]);

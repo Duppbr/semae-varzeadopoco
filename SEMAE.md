@@ -88,6 +88,7 @@ Sistema web + Android para controle de estoque, distribuição de merenda para e
 | `/admin` | Painel com atalhos para todos os cadastros |
 | `/admin/produtos` | CRUD de produtos |
 | `/admin/escolas` | CRUD de escolas e creches |
+| `/admin/fornecedores` | CRUD de fornecedores (empresas para quem o pedido é enviado) |
 | `/admin/responsaveis` | CRUD de responsáveis SEMAE |
 | `/admin/unidades` | CRUD de unidades de medida |
 | `/admin/categorias` | CRUD de categorias de produto |
@@ -182,6 +183,7 @@ Tipos disponíveis:
 |---|---|---|
 | `GET` | `/api/escolas` | Lista escolas ativas; aceita `?ativo=true` |
 | `GET` | `/api/responsaveis` | Lista responsáveis ativos; aceita `?ativo=true` |
+| `GET` | `/api/fornecedores` | Lista fornecedores; aceita `?ativo=true` |
 
 ### Administração (role `admin`)
 
@@ -189,6 +191,7 @@ CRUD completo (GET lista, POST cria, GET/PUT/DELETE por `[id]`) em:
 
 - `/api/admin/produtos`
 - `/api/admin/escolas`
+- `/api/admin/fornecedores`
 - `/api/admin/responsaveis`
 - `/api/admin/unidades`
 - `/api/admin/categorias`
@@ -224,13 +227,20 @@ Estoque         id, produtoId*, quantidade, updatedAt
 
 Responsavel     id, nome, cargo, ativo, createdAt, updatedAt
                 → entradas[], saidas[], descartes[], pedidos[]
+
+Fornecedor      id, nome*, cnpj, telefone, email, endereco, contato, observacao, ativo,
+                createdAt, updatedAt
+                → pedidos[], entradas[]
+                Só `nome` é obrigatório; campos vazios são omitidos do documento do pedido.
 ```
 
 #### Movimentações
 
 ```
-Entrada         id, numero*autoincr, data, responsavelId, fornecedor, observacao, createdAt
-                → responsavel, itens[]
+Entrada         id, numero*autoincr, data, responsavelId, fornecedorId, fornecedorNome,
+                observacao, createdAt
+                → responsavel, fornecedor, itens[]
+                `fornecedorNome` guarda o texto digitado nas entradas anteriores ao cadastro.
 
 ItemEntrada     id, entradaId[CASCADE], produtoId, quantidade, unidadeId
 
@@ -245,9 +255,11 @@ Descarte        id, numero*autoincr, data, responsavelId, motivo, observacao, cr
 
 ItemDescarte    id, descarteId[CASCADE], produtoId, quantidade, unidadeId
 
-PedidoCompra    id, numero*autoincr, data, escolaId, responsavelId, observacao,
-                status[RASCUNHO|ENVIADO|ATENDIDO|CANCELADO], createdAt
-                → escola, responsavel, itens[]
+PedidoCompra    id, numero*autoincr, data, escolaId, responsavelId, fornecedorId,
+                observacao, status[RASCUNHO|ENVIADO|ATENDIDO|CANCELADO], createdAt
+                → escola, responsavel, fornecedor, itens[]
+                `fornecedorId` é opcional no banco para não invalidar pedidos anteriores;
+                a tela de novo pedido exige o fornecedor.
 
 ItemPedido      id, pedidoId[CASCADE], produtoId, quantidade, unidadeId
 ```
@@ -637,14 +649,16 @@ Trabalho feito em `C:\Users\Duppbr\Documents\SEMAE`. Prime Cred foi usado **some
 
 1. Fazer backup/restauração verificável do PostgreSQL e programar uma janela sem lançamentos.
 2. Aplicar **antes do novo código** `prisma/patches/20260913-operacoes.sql` no banco correto. O script usa transação, adiciona campos/tabela/índices e importa documentos existentes para o histórico sem alterar seus saldos. Foi testado com reexecução sem duplicação.
-3. Gerar o cliente (`npx prisma generate`) e publicar o build web (`npm run build`). Não usar `db push --accept-data-loss` nem seed de demonstração em produção.
-4. Sincronizar/compilar e instalar o APK atualizado. Testar compartilhar um arquivo com outro app e imprimir/salvar como PDF no dispositivo real.
-5. Conferir uma entrada, saída, descarte, pedido parcial e seus saldos/históricos após a publicação.
+3. Aplicar, também antes do novo código, `prisma/patches/20260922-fornecedores.sql`. O script cria a tabela `Fornecedor`, liga o fornecedor ao pedido e à entrada, renomeia `Entrada.fornecedor` para `Entrada.fornecedorNome` e cadastra automaticamente os fornecedores que só existiam como texto nas entradas antigas, unificando grafias diferentes do mesmo nome. Usa transação e foi testado com reexecução e contra uma cópia do schema anterior.
+4. Gerar o cliente (`npx prisma generate`) e publicar o build web (`npm run build`). Não usar `db push --accept-data-loss` nem seed de demonstração em produção.
+5. Sincronizar/compilar e instalar o APK atualizado. Testar compartilhar um arquivo com outro app e imprimir/salvar como PDF no dispositivo real.
+6. Conferir uma entrada, saída, descarte, pedido parcial e seus saldos/históricos após a publicação.
 
 Exemplo de aplicação local do SQL, **somente após conferir o destino de DATABASE_URL e ter backup**:
 
 ```powershell
 node --env-file=.env.local node_modules/prisma/build/index.js db execute --schema prisma/schema.prisma --file prisma/patches/20260913-operacoes.sql
+node --env-file=.env.local node_modules/prisma/build/index.js db execute --schema prisma/schema.prisma --file prisma/patches/20260922-fornecedores.sql
 npx prisma generate
 npm run build
 ```
@@ -653,7 +667,7 @@ O projeto não tinha uma base de migrations versionadas. Por isso esta entrega i
 
 ### Testes executados
 
-- `npm test`: 11 grupos de verificação de regras e serviços em PostgreSQL embarcado PGlite descartável. Inclui rollback, duplicação de recebimento, excesso, unidade incompatível, negativos, estornos, histórico legado e PDF de 150 itens.
+- `npm test`: 12 grupos de verificação de regras e serviços em PostgreSQL embarcado PGlite descartável. Inclui rollback, duplicação de recebimento, excesso, unidade incompatível, negativos, estornos, histórico legado e PDF de 150 itens.
 - `npm run test:web`: 22 grupos no total, com Playwright/Chrome a 390 x 844 e 1366 x 900. Login, CSRF, quatro PDFs/download/retorno, acionamento de impressão web, detalhes pelas listas, item sem cadastro, recebimento parcial, histórico, estoque baixo, relatório e revogação de sessão. Sem erros JavaScript capturados.
 - `npx tsc --noEmit` e `npm run build`: aprovados.
 - `npm run lint`: sem erros; ainda há avisos em código legado, especialmente dependências de hooks e navegação de autenticação.

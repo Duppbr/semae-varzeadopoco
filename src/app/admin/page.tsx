@@ -4,12 +4,13 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import AppShell from '@/components/AppShell';
 import Link from 'next/link';
-import { Package, School, Users, Ruler, Tag, ShieldCheck } from 'lucide-react';
+import { Package, School, Users, Ruler, Tag, ShieldCheck, Truck } from 'lucide-react';
 
 const cards = [
   { href: '/admin/produtos',     label: 'Produtos',           Icon: Package,     color: 'bg-blue-50 text-blue-600'   },
   { href: '/admin/escolas',      label: 'Escolas / Creches',  Icon: School,      color: 'bg-green-50 text-green-600' },
   { href: '/admin/responsaveis', label: 'Responsáveis',       Icon: Users,       color: 'bg-purple-50 text-purple-600'},
+  { href: '/admin/fornecedores', label: 'Fornecedores',       Icon: Truck,       color: 'bg-indigo-50 text-indigo-600'},
   { href: '/admin/unidades',     label: 'Unidades de Medida', Icon: Ruler,       color: 'bg-orange-50 text-orange-600'},
   { href: '/admin/categorias',   label: 'Categorias',         Icon: Tag,         color: 'bg-pink-50 text-pink-600'   },
   { href: '/admin/usuarios',     label: 'Usuários',           Icon: ShieldCheck, color: 'bg-red-50 text-red-600'     },
@@ -38,7 +39,7 @@ export default function AdminPage() {
   return (
     <AppShell title="Administração">
       <div className="mb-4">
-        <p className="text-sm text-slate-500">Configure produtos, escolas, responsáveis e usuários do sistema.</p>
+        <p className="text-sm text-slate-500">Configure produtos, escolas, fornecedores, responsáveis e usuários do sistema.</p>
       </div>
       <div className="grid grid-cols-2 gap-3">
         {cards.map(({ href, label, Icon, color }) => (

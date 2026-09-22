@@ -20,6 +20,22 @@ model Escola {
   pedidos   PedidoCompra[]
 }
 
+model Fornecedor {
+  id         String         @id @default(cuid())
+  nome       String         @unique
+  cnpj       String?
+  telefone   String?
+  email      String?
+  endereco   String?
+  contato    String?
+  observacao String?
+  ativo      Boolean        @default(true)
+  createdAt  DateTime       @default(now())
+  updatedAt  DateTime       @updatedAt
+  pedidos    PedidoCompra[]
+  entradas   Entrada[]
+}
+
 model Categoria {
   id       String    @id @default(cuid())
   nome     String    @unique
@@ -78,57 +94,59 @@ model Responsavel {
 }
 
 model Entrada {
-  id            String        @id @default(cuid())
-  numero        Int           @unique @default(autoincrement())
-  data          DateTime
-  responsavelId String?
-  fornecedor    String?
-  observacao    String?
-  createdAt     DateTime      @default(now())
-  updatedAt     DateTime      @updatedAt
-  responsavel   Responsavel?  @relation(fields: [responsavelId], references: [id])
-  itens         ItemEntrada[]
-  pedidoId      String?
-  pedido        PedidoCompra? @relation(fields: [pedidoId], references: [id], onDelete: Restrict)
-  chaveOperacao String?       @unique
+  id             String        @id @default(cuid())
+  numero         Int           @unique @default(autoincrement())
+  data           DateTime
+  responsavelId  String?
+  fornecedorId   String?
+  fornecedorNome String?
+  observacao     String?
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+  responsavel    Responsavel?  @relation(fields: [responsavelId], references: [id])
+  fornecedor     Fornecedor?   @relation(fields: [fornecedorId], references: [id])
+  itens          ItemEntrada[]
+  pedidoId       String?
+  pedido         PedidoCompra? @relation(fields: [pedidoId], references: [id], onDelete: Restrict)
+  chaveOperacao  String?       @unique
 }
 
 model ItemEntrada {
-  id          String        @id @default(cuid())
-  entradaId   String
-  produtoId   String
-  quantidade  Float
-  unidadeId   String
-  entrada     Entrada       @relation(fields: [entradaId], references: [id], onDelete: Cascade)
-  produto     Produto       @relation(fields: [produtoId], references: [id])
-  unidade     UnidadeMedida @relation(fields: [unidadeId], references: [id])
+  id         String        @id @default(cuid())
+  entradaId  String
+  produtoId  String
+  quantidade Float
+  unidadeId  String
+  entrada    Entrada       @relation(fields: [entradaId], references: [id], onDelete: Cascade)
+  produto    Produto       @relation(fields: [produtoId], references: [id])
+  unidade    UnidadeMedida @relation(fields: [unidadeId], references: [id])
 }
 
 model Saida {
-  id            String      @id @default(cuid())
-  numero        Int         @unique @default(autoincrement())
+  id            String       @id @default(cuid())
+  numero        Int          @unique @default(autoincrement())
   data          DateTime
   escolaId      String
   responsavelId String?
   recebedor     String?
   observacao    String?
-  status        String      @default("PENDENTE")
-  createdAt     DateTime    @default(now())
-  updatedAt     DateTime    @updatedAt
-  escola        Escola      @relation(fields: [escolaId], references: [id])
+  status        String       @default("PENDENTE")
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+  escola        Escola       @relation(fields: [escolaId], references: [id])
   responsavel   Responsavel? @relation(fields: [responsavelId], references: [id])
   itens         ItemSaida[]
 }
 
 model ItemSaida {
-  id          String        @id @default(cuid())
-  saidaId     String
-  produtoId   String
-  quantidade  Float
-  unidadeId   String
-  saida       Saida         @relation(fields: [saidaId], references: [id], onDelete: Cascade)
-  produto     Produto       @relation(fields: [produtoId], references: [id])
-  unidade     UnidadeMedida @relation(fields: [unidadeId], references: [id])
+  id         String        @id @default(cuid())
+  saidaId    String
+  produtoId  String
+  quantidade Float
+  unidadeId  String
+  saida      Saida         @relation(fields: [saidaId], references: [id], onDelete: Cascade)
+  produto    Produto       @relation(fields: [produtoId], references: [id])
+  unidade    UnidadeMedida @relation(fields: [unidadeId], references: [id])
 }
 
 model Descarte {
@@ -145,14 +163,14 @@ model Descarte {
 }
 
 model ItemDescarte {
-  id          String        @id @default(cuid())
-  descarteId  String
-  produtoId   String
-  quantidade  Float
-  unidadeId   String
-  descarte    Descarte      @relation(fields: [descarteId], references: [id], onDelete: Cascade)
-  produto     Produto       @relation(fields: [produtoId], references: [id])
-  unidade     UnidadeMedida @relation(fields: [unidadeId], references: [id])
+  id         String        @id @default(cuid())
+  descarteId String
+  produtoId  String
+  quantidade Float
+  unidadeId  String
+  descarte   Descarte      @relation(fields: [descarteId], references: [id], onDelete: Cascade)
+  produto    Produto       @relation(fields: [produtoId], references: [id])
+  unidade    UnidadeMedida @relation(fields: [unidadeId], references: [id])
 }
 
 model PedidoCompra {
@@ -161,47 +179,49 @@ model PedidoCompra {
   data          DateTime
   escolaId      String?
   responsavelId String?
+  fornecedorId  String?
   observacao    String?
   status        String       @default("RASCUNHO")
   createdAt     DateTime     @default(now())
   updatedAt     DateTime     @updatedAt
   escola        Escola?      @relation(fields: [escolaId], references: [id])
   responsavel   Responsavel? @relation(fields: [responsavelId], references: [id])
+  fornecedor    Fornecedor?  @relation(fields: [fornecedorId], references: [id])
   itens         ItemPedido[]
   entradas      Entrada[]
 }
 
 model ItemPedido {
-  id          String        @id @default(cuid())
-  pedidoId    String
-  produtoId   String?
-  descricao   String?
-  recebido    Float         @default(0)
-  cancelado   Float         @default(0)
-  quantidade  Float
-  unidadeId   String
-  pedido      PedidoCompra  @relation(fields: [pedidoId], references: [id], onDelete: Cascade)
-  produto     Produto?      @relation(fields: [produtoId], references: [id])
-  unidade     UnidadeMedida @relation(fields: [unidadeId], references: [id])
+  id         String        @id @default(cuid())
+  pedidoId   String
+  produtoId  String?
+  descricao  String?
+  recebido   Float         @default(0)
+  cancelado  Float         @default(0)
+  quantidade Float
+  unidadeId  String
+  pedido     PedidoCompra  @relation(fields: [pedidoId], references: [id], onDelete: Cascade)
+  produto    Produto?      @relation(fields: [produtoId], references: [id])
+  unidade    UnidadeMedida @relation(fields: [unidadeId], references: [id])
 }
 
 // Historico imutavel: snapshots sobrevivem a exclusao do documento original.
 model MovimentoEstoque {
-  id           String   @id @default(cuid())
-  produtoId    String
-  produtoNome  String
-  unidade      String
-  quantidade   Float
-  saldo        Float?
-  chaveOrigem  String?  @unique
-  tipo         String
-  origemId     String
-  numero       Int?
-  pedidoId     String?
-  data         DateTime
-  motivo       String?
-  usuarioNome  String
-  createdAt    DateTime @default(now())
+  id          String   @id @default(cuid())
+  produtoId   String
+  produtoNome String
+  unidade     String
+  quantidade  Float
+  saldo       Float?
+  chaveOrigem String?  @unique
+  tipo        String
+  origemId    String
+  numero      Int?
+  pedidoId    String?
+  data        DateTime
+  motivo      String?
+  usuarioNome String
+  createdAt   DateTime @default(now())
 
   @@index([produtoId, createdAt])
   @@index([origemId])

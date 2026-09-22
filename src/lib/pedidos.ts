@@ -4,7 +4,7 @@ import { auditar, movimentar, transacao } from '@/lib/operacoes';
 import { dataCivil, ErroValidacao, lista, numero, objeto, texto } from '@/lib/validacao';
 import { pendente } from '@/lib/regras';
 
-export const incluirPedido = { escola: true, responsavel: true,
+export const incluirPedido = { escola: true, responsavel: true, fornecedor: true,
   itens: { include: { produto: true, unidade: true } },
   entradas: { select: { id: true, numero: true, data: true } } } as const;
 
@@ -22,9 +22,11 @@ export async function criarPedido(valor: unknown, session: SessionData) {
     }
     const escolaId = texto(b.escolaId, 'escola', false, 100) || null;
     const responsavelId = texto(b.responsavelId, 'responsavel', false, 100) || null;
+    const fornecedorId = texto(b.fornecedorId, 'fornecedor', false, 100) || null;
     if (escolaId && !await tx.escola.findFirst({ where: { id: escolaId, ativo: true } })) throw new ErroValidacao('Escola invalida.');
     if (responsavelId && !await tx.responsavel.findFirst({ where: { id: responsavelId, ativo: true } })) throw new ErroValidacao('Responsavel invalido.');
-    const pedido = await tx.pedidoCompra.create({ data: { data, escolaId, responsavelId,
+    if (fornecedorId && !await tx.fornecedor.findFirst({ where: { id: fornecedorId, ativo: true } })) throw new ErroValidacao('Fornecedor invalido.');
+    const pedido = await tx.pedidoCompra.create({ data: { data, escolaId, responsavelId, fornecedorId,
       observacao: texto(b.observacao, 'observacao'), status: 'PENDENTE', itens: { create: itens } }, include: incluirPedido });
     await auditar(tx, session, 'pedido-compra', pedido.id, 'CRIAR', `Pedido #${pedido.numero} criado.`, pedido);
     return pedido;
@@ -85,8 +87,10 @@ export async function receberPedido(id: string, valor: unknown, session: Session
         recebido: { increment: item.quantidade }, cancelado: { increment: item.encerrar ? restante - item.quantidade : 0 },
       } });
     }
+    const informado = texto(b.fornecedorId, 'fornecedor', false, 100) || null;
+    if (informado && !await tx.fornecedor.findFirst({ where: { id: informado, ativo: true } })) throw new ErroValidacao('Fornecedor invalido.');
     const entrada = await tx.entrada.create({ data: { data, pedidoId: id, chaveOperacao: chave,
-      responsavelId: pedido.responsavelId, fornecedor: texto(b.fornecedor, 'fornecedor'), observacao: motivo,
+      responsavelId: pedido.responsavelId, fornecedorId: informado || pedido.fornecedorId, observacao: motivo,
       itens: { create: recebidos } }, include: { itens: true } });
     for (const item of recebidos) await movimentar(tx, session, item,
       { tipo: 'entrada', origemId: entrada.id, numero: entrada.numero, pedidoId: id, data, motivo: `Pedido #${pedido.numero}. ${motivo}` });

@@ -9,15 +9,17 @@ import { Plus, Trash2, PackagePlus, Search } from 'lucide-react';
 
 interface Produto { id: string; nome: string; unidade: { id: string; abreviacao: string }; categoria: { nome: string; cor: string } }
 interface Responsavel { id: string; nome: string; cargo: string | null }
+interface Fornecedor { id: string; nome: string }
 interface ItemForm { produtoId: string; produtoNome: string; unidadeId: string; unidadeAbrev: string; quantidade: string }
 
 export default function NovaEntradaPage() {
   const router = useRouter();
   const [produtos, setProdutos] = useState<Produto[]>([]);
   const [responsaveis, setResponsaveis] = useState<Responsavel[]>([]);
+  const [fornecedores, setFornecedores] = useState<Fornecedor[]>([]);
   const [data, setData] = useState(hoje);
   const [responsavelId, setResponsavelId] = useState('');
-  const [fornecedor, setFornecedor] = useState('');
+  const [fornecedorId, setFornecedorId] = useState('');
   const [observacao, setObservacao] = useState('');
   const [itens, setItens] = useState<ItemForm[]>([]);
   const [busca, setBusca] = useState('');
@@ -28,6 +30,7 @@ export default function NovaEntradaPage() {
   useEffect(() => {
     requisitar<Produto[]>('/api/estoque').then(setProdutos).catch(e => setErro(e.message));
     requisitar<Responsavel[]>('/api/responsaveis?ativo=true').then(setResponsaveis).catch(e => setErro(e.message));
+    requisitar<Fornecedor[]>('/api/fornecedores?ativo=true').then(setFornecedores).catch(e => setErro(e.message));
   }, []);
 
   const produtosFiltrados = produtos.filter(p =>
@@ -56,7 +59,7 @@ export default function NovaEntradaPage() {
         body: JSON.stringify({
           data,
           responsavelId: responsavelId || undefined,
-          fornecedor: fornecedor || undefined,
+          fornecedorId: fornecedorId || undefined,
           observacao: observacao || undefined,
           itens: itensValidos.map(i => ({ produtoId: i.produtoId, quantidade: parseFloat(i.quantidade), unidadeId: i.unidadeId })),
         }),
@@ -79,9 +82,14 @@ export default function NovaEntradaPage() {
           </div>
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-1.5">Fornecedor</label>
-            <input type="text" value={fornecedor} onChange={e => setFornecedor(e.target.value)}
-              placeholder="Nome do fornecedor"
-              className="w-full px-4 py-3 border border-slate-200 rounded-xl bg-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-500 text-slate-900" />
+            <select value={fornecedorId} onChange={e => setFornecedorId(e.target.value)}
+              className="w-full px-4 py-3 border border-slate-200 rounded-xl bg-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-500 text-slate-900">
+              <option value="">Selecionar fornecedor</option>
+              {fornecedores.map(f => <option key={f.id} value={f.id}>{f.nome}</option>)}
+            </select>
+            {fornecedores.length === 0 && <p className="text-xs text-slate-500 mt-1.5">
+              Nenhum fornecedor cadastrado. Cadastre em Administração &rsaquo; Fornecedores.
+            </p>}
           </div>
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-1.5">Responsável</label>

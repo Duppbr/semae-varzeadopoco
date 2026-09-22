@@ -10,7 +10,8 @@ interface Entrada {
   id: string;
   numero: number;
   data: string;
-  fornecedor: string | null;
+  fornecedor: { nome: string } | null;
+  fornecedorNome: string | null;
   observacao: string | null;
   responsavel: { nome: string } | null;
   itens: { quantidade: number; produto: { nome: string }; unidade: { abreviacao: string } }[];
@@ -71,7 +72,7 @@ export default function EntradaPage() {
                       {fmtData(e.data)}
                     </span>
                   </div>
-                  {e.fornecedor && <p className="font-semibold text-slate-900 mt-1 text-sm">{e.fornecedor}</p>}
+                  {(e.fornecedor?.nome || e.fornecedorNome) && <p className="font-semibold text-slate-900 mt-1 text-sm">{e.fornecedor?.nome || e.fornecedorNome}</p>}
                   {e.responsavel && <p className="text-xs text-slate-500 mt-0.5">Resp.: {e.responsavel.nome}</p>}
                 </div>
                 <div className="bg-blue-50 rounded-xl px-3 py-1.5 text-right">
