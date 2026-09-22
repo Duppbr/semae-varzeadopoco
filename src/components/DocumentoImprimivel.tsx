@@ -26,7 +26,7 @@ export default function DocumentoImprimivel({ documento }: { documento: Document
       .doc-campos dd {font-size:12px;white-space:pre-wrap;overflow-wrap:anywhere;}
       .documento table {width:100%;border-collapse:collapse;table-layout:fixed;font-size:12px;}
       .documento th,.documento td {padding:8px;border-bottom:1px solid #ddd;text-align:left;overflow-wrap:anywhere;}
-      .documento th {background:#e2e8f0;}
+      .documento th {background:#1e3a5f;color:#ffffff;}
       .documento table:not(.doc-larguras) th:first-child {width:45%;}
       .documento tr {break-inside:avoid;}
       .doc-total td {font-weight:700;background:#f8fafc;}

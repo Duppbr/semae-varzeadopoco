@@ -44,7 +44,8 @@ function documentoDoPedido(pedido: Pedido, id: string): Documento {
     linhas: itens.map((item, i) => [String(i + 1), nomeDoItem(item), quantidade(item.quantidade), item.unidade.abreviacao,
       ...(COLUNAS_PRECO ? ['', ''] : [])]),
     total: COLUNAS_PRECO ? ['', 'TOTAL GERAL', '', '', '', ''] : undefined,
-    rodape: ['Pedido realizado por', pedido.responsavel?.nome || 'SEMAE'],
+    // Sem responsavel, o rodape inteiro sai: melhor nada do que um espaco vazio.
+    rodape: pedido.responsavel?.nome ? ['Pedido realizado por', pedido.responsavel.nome] : undefined,
   };
 }
 
@@ -59,12 +60,14 @@ export default async function PaginaDocumento({ tipo, id }: { tipo: TipoMoviment
   const doc = await buscarMovimento(tipo, id);
   if (!doc) notFound();
   const nome = { entrada: 'Entrada', saida: 'Saída', descarte: 'Descarte' }[tipo];
-  const campos: Documento['campos'] = [['Data', formatarData(doc.data)], ['Responsável', doc.responsavel?.nome || '-']];
+  // Campo sem valor sai do documento em vez de imprimir um traco num espaco vazio.
+  const campos: Documento['campos'] = [['Data', formatarData(doc.data)]];
+  if (doc.responsavel?.nome) campos.push(['Responsável', doc.responsavel.nome]);
   if ('escola' in doc) campos.push(['Destino', doc.escola?.nome || 'Geral / SEMAE']);
   // Entradas novas apontam para o cadastro; as antigas so tem o nome digitado.
   const fornecedor = ('fornecedor' in doc && doc.fornecedor?.nome) || ('fornecedorNome' in doc && doc.fornecedorNome) || '';
   if (fornecedor) campos.push(['Fornecedor', fornecedor]);
-  if ('recebedor' in doc) campos.push(['Recebedor', doc.recebedor || '-']);
+  if ('recebedor' in doc && doc.recebedor) campos.push(['Recebedor', doc.recebedor]);
   if ('motivo' in doc) campos.push(['Motivo', doc.motivo]);
   if ('status' in doc) campos.push(['Status', doc.status]);
   if ('pedido' in doc && doc.pedido) campos.push(['Pedido de origem', `#${doc.pedido.numero}`]);
