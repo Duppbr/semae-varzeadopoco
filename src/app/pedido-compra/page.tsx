@@ -11,7 +11,8 @@ interface PedidoCompra {
   numero: number;
   data: string;
   status: string;
-  escola: { nome: string };
+  escola: { nome: string } | null;
+  fornecedor: { nome: string } | null;
   responsavel: { nome: string } | null;
   itens: { quantidade: number; descricao: string | null; produto: { nome: string } | null; unidade: { abreviacao: string } }[];
 }
@@ -130,8 +131,13 @@ export default function PedidoCompraPage() {
                     </span>
                   </div>
                   <p className="font-semibold text-slate-900 truncate">
-                    {p.escola?.nome || 'Geral / SEMAE'}
+                    {p.fornecedor?.nome || p.escola?.nome || 'Geral / SEMAE'}
                   </p>
+                  {p.fornecedor && (
+                    <p className="text-xs text-slate-500 truncate">
+                      Destino: {p.escola?.nome || 'Geral / SEMAE'}
+                    </p>
+                  )}
                   <div className="flex items-center gap-2 mt-0.5 flex-wrap">
                     <span className="flex items-center gap-1 text-xs text-slate-500">
                       <Calendar size={11} />{fmtData(p.data)}

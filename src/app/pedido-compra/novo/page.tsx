@@ -16,6 +16,7 @@ interface Produto {
   estoque: { quantidade: number } | null;
 }
 interface Responsavel { id: string; nome: string; cargo: string | null }
+interface Fornecedor { id: string; nome: string }
 interface ItemForm {
   produtoId: string;
   produtoNome: string;
@@ -30,11 +31,13 @@ export default function NovoPedidoCompraPage() {
   const [escolas, setEscolas] = useState<Escola[]>([]);
   const [produtos, setProdutos] = useState<Produto[]>([]);
   const [responsaveis, setResponsaveis] = useState<Responsavel[]>([]);
+  const [fornecedores, setFornecedores] = useState<Fornecedor[]>([]);
   const [data, setData] = useState(hoje);
   const [unidades, setUnidades] = useState<{ id: string; nome: string; abreviacao: string }[]>([]);
   const [nomeLivre, setNomeLivre] = useState('');
   const [unidadeLivre, setUnidadeLivre] = useState('');
   const [escolaId, setEscolaId] = useState('');
+  const [fornecedorId, setFornecedorId] = useState('');
   const [responsavelId, setResponsavelId] = useState('');
   const [observacao, setObservacao] = useState('');
   const [itens, setItens] = useState<ItemForm[]>([]);
@@ -49,11 +52,13 @@ export default function NovoPedidoCompraPage() {
       requisitar<Produto[]>('/api/estoque'),
       requisitar<Responsavel[]>('/api/responsaveis?ativo=true'),
       requisitar<{ id: string; nome: string; abreviacao: string }[]>('/api/unidades'),
-    ]).then(([esc, prod, resp, un]) => {
+      requisitar<Fornecedor[]>('/api/fornecedores?ativo=true'),
+    ]).then(([esc, prod, resp, un, forn]) => {
       setEscolas(esc);
       setProdutos(prod);
       setResponsaveis(resp);
       setUnidades(un);
+      setFornecedores(forn);
     }).catch(e => setErro(e.message));
   }, []);
 
@@ -83,6 +88,10 @@ export default function NovoPedidoCompraPage() {
 
   const salvar = async () => {
     const itensValidos = itens;
+    if (!fornecedorId) {
+      setErro('Selecione o fornecedor para quem o pedido será enviado.');
+      return;
+    }
     if (!itensValidos.length || itens.some(i => !Number.isFinite(Number(i.quantidade)) || Number(i.quantidade) <= 0)) {
       setErro('Informe uma quantidade positiva para todos os itens.');
       return;
@@ -96,6 +105,7 @@ export default function NovoPedidoCompraPage() {
         body: JSON.stringify({
           data,
           escolaId: escolaId || undefined,
+          fornecedorId: fornecedorId || undefined,
           responsavelId: responsavelId || undefined,
           observacao: observacao || undefined,
           itens: itensValidos.map(i => ({
@@ -126,6 +136,25 @@ export default function NovoPedidoCompraPage() {
         {/* Dados gerais */}
         <div className="bg-white rounded-2xl border border-slate-200 p-4 space-y-4 shadow-sm">
           <h3 className="font-semibold text-slate-800">Informações gerais</h3>
+
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1.5">Fornecedor *</label>
+            <select
+              value={fornecedorId}
+              onChange={e => setFornecedorId(e.target.value)}
+              className="w-full px-4 py-3 border border-slate-200 rounded-xl bg-slate-50 focus:outline-none focus:ring-2 focus:ring-purple-500 text-slate-900"
+            >
+              <option value="">Selecionar fornecedor</option>
+              {fornecedores.map(f => (
+                <option key={f.id} value={f.id}>{f.nome}</option>
+              ))}
+            </select>
+            {fornecedores.length === 0 && (
+              <p className="text-xs text-slate-500 mt-1.5">
+                Nenhum fornecedor cadastrado. Cadastre em Administração &rsaquo; Fornecedores.
+              </p>
+            )}
+          </div>
 
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-1.5">

@@ -13,7 +13,7 @@ export async function GET(req: NextRequest) {
     return prisma.entrada.findMany({
       take: Math.floor(limit), skip: Math.floor(offset), orderBy: { numero: 'desc' },
       
-      include: { ...incluirItens },
+      include: { ...incluirItens, fornecedor: { select: { id: true, nome: true } } },
     });
   });
 }

@@ -20,6 +20,9 @@ async function main() {
   const patch = readFileSync('prisma/patches/20260913-operacoes.sql', 'utf8');
   await db.exec(patch);
   await db.exec(patch);
+  const patchFornecedores = readFileSync('prisma/patches/20260922-fornecedores.sql', 'utf8');
+  await db.exec(patchFornecedores);
+  await db.exec(patchFornecedores);
   const socket = new PGLiteSocketServer({ db, host: '127.0.0.1', port: 55439, maxConnections: 10 });
   await socket.start();
   const { prisma } = await import('../src/lib/prisma');
@@ -94,6 +97,21 @@ async function main() {
     await assert.rejects(excluirPedido(pedido.id, session));
     await assert.rejects(excluirMovimento('entrada', recebimento.id, session));
     ok('edita recebimento, vincula item livre, encerra saldo e preserva origem');
+    const fornecedor = await prisma.fornecedor.create({ data: { nome: 'Distribuidora ficticia de teste', cnpj: '00.000.000/0001-00' } });
+    const inativo = await prisma.fornecedor.create({ data: { nome: 'Fornecedor desativado de teste', ativo: false } });
+    await assert.rejects(criarPedido({ data, fornecedorId: inativo.id, itens: [item] }, session));
+    await assert.rejects(criarPedido({ data, fornecedorId: 'inexistente', itens: [item] }, session));
+    const comFornecedor = await criarPedido({ data, fornecedorId: fornecedor.id, itens: [item] }, session);
+    assert.equal(comFornecedor.fornecedor?.nome, fornecedor.nome);
+    // A entrada do recebimento herda o fornecedor do pedido sem ninguem redigitar o nome.
+    const recebida = await receberPedido(comFornecedor.id, { data, chaveOperacao: 'teste-fornecedor-1',
+      itens: [{ id: comFornecedor.itens[0].id, quantidade: 10 }] }, session);
+    assert.equal((await prisma.entrada.findUniqueOrThrow({ where: { id: recebida.id } })).fornecedorId, fornecedor.id);
+    const avulsa = await criarMovimento('entrada', { data, fornecedorId: fornecedor.id, itens: [item] }, session);
+    assert.equal((await prisma.entrada.findUniqueOrThrow({ where: { id: avulsa.id } })).fornecedorId, fornecedor.id);
+    await assert.rejects(criarMovimento('entrada', { data, fornecedorId: inativo.id, itens: [item] }, session));
+    ok('pedido e entrada usam o fornecedor cadastrado e recusam fornecedor invalido');
+
     const saldoAntes = (await prisma.estoque.findUniqueOrThrow({ where: { produtoId: produto.id } })).quantidade;
     await assert.rejects(transacao(async tx => {
       await movimentar(tx, session, { produtoId: produto.id, quantidade: 100 }, { tipo: 'teste', origemId: 'rollback', data: new Date() });

@@ -12,6 +12,7 @@ export default async function DetalheMovimento({ tipo, id }: { tipo: 'entrada' |
   const doc = await buscarMovimento(tipo, id);
   if (!doc) notFound();
   const ehEntrada = tipo === 'entrada';
+  const nomeFornecedor = ('fornecedor' in doc && doc.fornecedor?.nome) || ('fornecedorNome' in doc && doc.fornecedorNome) || '';
 
   return <AppShell title={`${ehEntrada ? 'Entrada' : 'Descarte'} #${doc.numero}`} backHref={`/${tipo}`}
     actions={<Link href={`/${tipo}/${id}/pdf`} className="flex items-center gap-1.5 bg-slate-800 text-white text-sm font-semibold px-3 py-1.5 rounded-xl active:bg-slate-900"><Printer size={16} /> PDF</Link>}>
@@ -26,9 +27,9 @@ export default async function DetalheMovimento({ tipo, id }: { tipo: 'entrada' |
           <User size={18} className="text-blue-500 shrink-0" />
           <div><p className="text-xs text-slate-500">Responsável</p><p className="font-medium text-slate-900">{doc.responsavel?.nome || '—'}</p></div>
         </div>
-        {'fornecedor' in doc && doc.fornecedor && <div className="p-4 flex items-center gap-3 border-t border-slate-100">
+        {nomeFornecedor && <div className="p-4 flex items-center gap-3 border-t border-slate-100">
           <Truck size={18} className="text-slate-400 shrink-0" />
-          <div><p className="text-xs text-slate-500">Fornecedor</p><p className="font-medium text-slate-900">{doc.fornecedor}</p></div>
+          <div><p className="text-xs text-slate-500">Fornecedor</p><p className="font-medium text-slate-900">{nomeFornecedor}</p></div>
         </div>}
         {'motivo' in doc && doc.motivo && <div className="p-4 flex items-center gap-3 border-t border-slate-100">
           <Trash2 size={18} className="text-red-400 shrink-0" />
