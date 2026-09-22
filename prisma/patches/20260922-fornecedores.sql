@@ -61,4 +61,18 @@ WHERE e."fornecedorId" IS NULL
   AND e."fornecedorNome" IS NOT NULL
   AND lower(btrim(e."fornecedorNome")) = lower(f."nome");
 
+-- Religa tambem os pedidos antigos: quando todas as entradas de um pedido vieram
+-- do mesmo fornecedor, esse e o fornecedor do pedido. Pedido recebido de mais de
+-- um fornecedor fica sem vinculo, porque nao da para escolher um sem inventar.
+UPDATE "PedidoCompra" p
+SET "fornecedorId" = origem."fornecedorId"
+FROM (
+  SELECT e."pedidoId", MIN(e."fornecedorId") AS "fornecedorId"
+  FROM "Entrada" e
+  WHERE e."pedidoId" IS NOT NULL AND e."fornecedorId" IS NOT NULL
+  GROUP BY e."pedidoId"
+  HAVING COUNT(DISTINCT e."fornecedorId") = 1
+) AS origem
+WHERE p."id" = origem."pedidoId" AND p."fornecedorId" IS NULL;
+
 COMMIT;
