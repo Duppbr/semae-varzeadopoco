@@ -411,6 +411,24 @@ As mesmas variáveis devem estar no painel do Vercel em **Settings → Environme
 
 ## Como Rodar Localmente
 
+### Teste isolado, sem tocar na produção (recomendado)
+
+No Windows, dê dois cliques em **`testar-local.bat`**. Ele instala o que falta na
+primeira vez, prepara o banco e abre o navegador sozinho.
+
+Em outros sistemas: `npm run preview:local`.
+
+Sobe um PostgreSQL em memória com o schema atual, popula dados fictícios
+(catálogo mínimo, duas escolas, três fornecedores e um lançamento de cada tipo)
+e inicia o Next na porta 4000. Login `admin`, senha `teste123`. **Não lê o
+`.env.local` e não toca no Supabase**; ao fechar a janela, o banco é descartado.
+
+Como o schema vem de `prisma/schema.prisma`, os patches SQL de
+`prisma/patches/` **não precisam ser aplicados** nesse modo — eles existem só
+para atualizar um banco que já tem dados, como o de produção.
+
+### Servidor de desenvolvimento comum (precisa de um banco)
+
 ```bash
 npm install
 npm run dev

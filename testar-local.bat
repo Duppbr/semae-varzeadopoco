@@ -9,6 +9,19 @@ echo   Banco em memoria, dados ficticios. Nao toca na producao.
 echo   Porta: 4000  ^|  Login: admin  ^|  Senha: teste123
 echo ============================================================
 echo.
+
+if not exist "node_modules" (
+  echo   Primeira vez neste computador: instalando as dependencias.
+  echo   Isso demora alguns minutos. So acontece uma vez.
+  echo.
+  call npm install
+  echo.
+)
+
+echo   Preparando o banco de teste com o formato atual...
+call npx prisma generate >nul 2>&1
+echo.
+
 echo   Aguarde: construir schema, popular dados e iniciar o Next.
 echo   O navegador abre sozinho quando estiver pronto.
 echo   Para encerrar: feche esta janela ou pressione Ctrl+C.
