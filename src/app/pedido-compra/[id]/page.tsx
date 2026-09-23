@@ -2,7 +2,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
-import { PackagePlus, Printer, Send, Trash2, XCircle, Calendar, School, User, FileText, ChevronRight, Truck } from 'lucide-react';
+import { PackagePlus, Printer, Send, Trash2, XCircle, Calendar, School, User, FileText, ChevronRight, Truck, Copy } from 'lucide-react';
 import AppShell from '@/components/AppShell';
 import Historico from '@/components/Historico';
 import { requisitar } from '@/lib/http-client';
@@ -96,6 +96,7 @@ export default function Page() {
           {aberto && !recebendo && <button disabled={ocupado} onClick={iniciar} className="flex gap-1.5 items-center bg-green-600 text-white text-xs font-bold px-3 py-2 rounded-xl disabled:opacity-50 active:bg-green-700"><PackagePlus size={15} /> Receber no estoque</button>}
           {['PENDENTE', 'RASCUNHO'].includes(pedido.status) && <button disabled={ocupado} onClick={() => status('ENVIADO')} className="flex items-center gap-1.5 bg-white/70 text-blue-800 text-xs font-bold px-3 py-2 rounded-xl disabled:opacity-50"><Send size={15} /> Marcar enviado</button>}
           {aberto && <button disabled={ocupado} onClick={() => status('CANCELADO')} className="flex items-center gap-1.5 bg-white/70 text-red-700 text-xs font-bold px-3 py-2 rounded-xl disabled:opacity-50"><XCircle size={15} /> Cancelar pendências</button>}
+          {!recebendo && <Link href={`/pedido-compra/novo?base=${id}`} className="flex items-center gap-1.5 bg-white/70 text-slate-800 text-xs font-bold px-3 py-2 rounded-xl active:bg-white"><Copy size={15} /> Refazer pedido</Link>}
         </div>
       </div>
 

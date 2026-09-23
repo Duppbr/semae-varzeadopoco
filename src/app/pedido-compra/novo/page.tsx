@@ -3,10 +3,11 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import AppShell from '@/components/AppShell';
-import { Plus, Trash2, ShoppingCart } from 'lucide-react';
+import { Plus, Trash2, ShoppingCart, Copy } from 'lucide-react';
 import { requisitar } from '@/lib/http-client';
 import { hoje } from '@/lib/regras';
 import AdicionarProduto from '@/components/AdicionarProduto';
+import { montarDaBase, type PedidoBase } from '@/lib/refazer-pedido';
 
 interface Escola { id: string; nome: string; tipo: string }
 interface Produto {
@@ -25,6 +26,7 @@ interface ItemForm {
   unidadeAbrev: string;
   estoqueAtual: number;
   quantidade: string;
+  aviso?: string;
 }
 
 interface Unidade { id: string; nome: string; abreviacao: string }
@@ -68,20 +70,34 @@ export default function NovoPedidoCompraPage() {
   const [itens, setItens] = useState<ItemForm[]>([]);
   const [salvando, setSalvando] = useState(false);
   const [erro, setErro] = useState('');
+  const [base, setBase] = useState<{ id: string; numero: number; avisos: string[] } | null>(null);
 
   useEffect(() => {
+    // ?base=<id> vem do botao "Refazer pedido". Lido direto da URL para nao exigir
+    // Suspense em volta da pagina inteira (useSearchParams).
+    const baseId = new URLSearchParams(window.location.search).get('base');
     Promise.all([
       requisitar<Escola[]>('/api/escolas?ativo=true'),
       requisitar<Produto[]>('/api/estoque'),
       requisitar<Responsavel[]>('/api/responsaveis?ativo=true'),
-      requisitar<{ id: string; nome: string; abreviacao: string }[]>('/api/unidades'),
+      requisitar<Unidade[]>('/api/unidades'),
       requisitar<Fornecedor[]>('/api/fornecedores?ativo=true'),
-    ]).then(([esc, prod, resp, un, forn]) => {
+      baseId ? requisitar<PedidoBase>(`/api/pedido-compra/${encodeURIComponent(baseId)}`) : Promise.resolve(null),
+    ]).then(([esc, prod, resp, un, forn, pedidoBase]) => {
       setEscolas(esc);
       setProdutos(prod);
       setResponsaveis(resp);
       setUnidades(un);
       setFornecedores(forn);
+      if (baseId && pedidoBase) {
+        const m = montarDaBase(pedidoBase, { produtos: prod, unidades: un, fornecedores: forn, escolas: esc, responsaveis: resp });
+        setFornecedorId(m.fornecedorId);
+        setEscolaId(m.escolaId);
+        setResponsavelId(m.responsavelId);
+        setObservacao(m.observacao);
+        setItens(m.itens);
+        setBase({ id: baseId, numero: pedidoBase.numero, avisos: m.avisos });
+      }
     }).catch(e => setErro(e.message));
   }, []);
 
@@ -102,7 +118,7 @@ export default function NovoPedidoCompraPage() {
   const removerProduto = (p: Produto) => setItens(prev => prev.filter(i => i.produtoId !== p.id));
   const removerItem = (idx: number) => setItens(prev => prev.filter((_, i) => i !== idx));
   const atualizarQtd = (idx: number, v: string) =>
-    setItens(prev => prev.map((it, i) => (i === idx ? { ...it, quantidade: v } : it)));
+    setItens(prev => prev.map((it, i) => (i === idx ? { ...it, quantidade: v, aviso: undefined } : it)));
 
   const salvar = async () => {
     const itensValidos = itens;
@@ -149,8 +165,20 @@ export default function NovoPedidoCompraPage() {
   };
 
   return (
-    <AppShell title="Novo Pedido de Compra" backHref="/pedido-compra">
+    <AppShell title="Novo Pedido de Compra" backHref={base ? `/pedido-compra/${base.id}` : '/pedido-compra'}>
       <div className="space-y-4">
+        {base && (
+          <div className="bg-purple-50 border border-purple-200 rounded-2xl p-4 text-sm">
+            <p className="font-semibold text-purple-900 flex items-center gap-2"><Copy size={16} /> Refazendo o Pedido #{base.numero}</p>
+            <p className="mt-1 text-purple-800">
+              Já veio tudo preenchido. Adicione, remova ou ajuste os itens e registre: será um pedido novo, e o #{base.numero} não muda.
+            </p>
+            {base.avisos.map(a => (
+              <p key={a} className="mt-2 text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">{a}</p>
+            ))}
+          </div>
+        )}
+
         {/* Dados gerais */}
         <div className="bg-white rounded-2xl border border-slate-200 p-4 space-y-4 shadow-sm">
           <h3 className="font-semibold text-slate-800">Informações gerais</h3>
@@ -261,6 +289,7 @@ export default function NovoPedidoCompraPage() {
                       <p className="text-xs text-slate-500">
                         {it.produtoId ? `Estoque atual: ${it.estoqueAtual.toFixed(1)} ${it.unidadeAbrev}` : 'Item sem cadastro'}
                       </p>
+                      {it.aviso && <p className="text-xs font-medium text-amber-700 mt-0.5">{it.aviso}</p>}
                     </div>
                     <button
                       onClick={() => removerItem(idx)}

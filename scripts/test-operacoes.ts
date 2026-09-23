@@ -9,6 +9,7 @@ import bcrypt from 'bcryptjs';
 import { estoqueBaixo, pendente, formatarData } from '../src/lib/regras';
 import { dataCivil, numero } from '../src/lib/validacao';
 import { gerarPdf } from '../src/lib/gerar-pdf';
+import { montarDaBase } from '../src/lib/refazer-pedido';
 
 async function main() {
   // Sobrescreve explicitamente o destino ANTES de importar Prisma. Nunca le .env.local.
@@ -40,6 +41,18 @@ async function main() {
     assert.throws(() => numero(Infinity, 'qtd')); assert.throws(() => numero('1', 'qtd'));
     assert.throws(() => dataCivil('2026-02-30')); assert.equal(formatarData('2026-09-15T00:00:00Z'), '15/09/2026');
     ok('regras: minimo, negativo, decimais, datas e numeros invalidos');
+    const refeito = montarDaBase({ numero: 5, observacao: 'Entregar cedo', escolaId: 'escola-inativa', responsavelId: null, fornecedorId: 'f1',
+      fornecedor: { nome: 'F' }, escola: { nome: 'Escola antiga' }, responsavel: null, itens: [
+        { produtoId: 'p1', descricao: null, unidadeId: 'kg', quantidade: 20, produto: { nome: 'Acucar' }, unidade: { abreviacao: 'kg' } },
+        { produtoId: 'p-inativo', descricao: null, unidadeId: 'kg', quantidade: 3, produto: { nome: 'Produto antigo' }, unidade: { abreviacao: 'kg' } },
+        { produtoId: null, descricao: 'Item livre', unidadeId: 'un', quantidade: 2, produto: null, unidade: { abreviacao: 'un' } },
+      ] }, { produtos: [{ id: 'p1', nome: 'Acucar', unidade: { id: 'fd', abreviacao: 'fd' }, estoque: { quantidade: 4 } }],
+      unidades: [{ id: 'un', abreviacao: 'un' }], fornecedores: [{ id: 'f1' }], escolas: [], responsaveis: [] });
+    assert.equal(refeito.fornecedorId, 'f1'); assert.equal(refeito.escolaId, ''); assert.equal(refeito.observacao, 'Entregar cedo');
+    assert.deepEqual(refeito.itens.map(i => [i.produtoNome, i.quantidade, i.unidadeAbrev]), [['Acucar', '20', 'fd'], ['Item livre', '2', 'un']]);
+    assert.match(refeito.itens[0].aviso ?? '', /era kg, agora fd/); assert.equal(refeito.itens[1].aviso, undefined);
+    assert.ok(refeito.avisos.some(a => a.includes('Produto antigo')) && refeito.avisos.some(a => a.includes('Escola antiga')));
+    ok('refazer pedido: copia so o que esta ativo e avisa unidade que mudou');
 
     const u = await prisma.unidadeMedida.create({ data: { nome: 'Quilograma', abreviacao: 'kg' } });
     const outraUnidade = await prisma.unidadeMedida.create({ data: { nome: 'Unidade', abreviacao: 'un' } });
@@ -224,10 +237,27 @@ async function main() {
       await page.getByRole('button', { name: 'Adicionar item ao pedido' }).click();
       for (const campo of await page.getByPlaceholder('Quantidade', { exact: true }).all()) await campo.fill('7');
       await page.getByRole('button', { name: 'Registrar pedido' }).click();
-      await expect(page.getByText('Produto livre de teste', { exact: true })).toBeVisible();
-      await expect(page.getByText('Arroz de teste', { exact: true })).toBeVisible();
+      // Confere no pedido salvo (nao no formulario): la o item vem como "Nome (un)".
       await expect(page.getByText('Pedido pendente', { exact: true })).toBeVisible();
+      await expect(page.getByText(/^Produto livre de teste/)).toBeVisible();
+      await expect(page.getByText(/^Arroz de teste/)).toBeVisible();
       ok('formulario cria pedido com produto cadastrado (busca) e item sem cadastro');
+      // Refazer: abre o formulario ja preenchido e registra um pedido NOVO.
+      const urlOriginal = page.url();
+      await page.getByRole('link', { name: /Refazer pedido/ }).click();
+      await expect(page.getByText(/Refazendo o Pedido #/)).toBeVisible();
+      await expect(page.getByLabel('Fornecedor', { exact: true })).not.toHaveValue('');
+      await expect(page.getByText('Arroz de teste', { exact: true })).toBeVisible();
+      await expect(page.getByText('Produto livre de teste', { exact: true })).toBeVisible();
+      const quantidades = await page.getByPlaceholder('Quantidade', { exact: true }).all();
+      assert.equal(quantidades.length, 2);
+      for (const campo of quantidades) await expect(campo).toHaveValue('7');
+      await page.getByRole('button', { name: 'Registrar pedido' }).click();
+      await expect(page.getByText('Pedido pendente', { exact: true })).toBeVisible();
+      assert.notEqual(page.url(), urlOriginal);
+      await expect(page.getByText(/^Arroz de teste/)).toBeVisible();
+      await expect(page.getByText(/^Produto livre de teste/)).toBeVisible();
+      ok('refazer pedido abre o formulario preenchido e registra um pedido novo');
       const estoqueHttp = await (await context.request.get(`${url}/api/estoque`)).json();
       const dashboard = await (await context.request.get(`${url}/api/dashboard`)).json();
       const esperado = estoqueHttp.filter((p: { estoque: { quantidade: number }; estoqueMinimo: number }) => estoqueBaixo(p.estoque.quantidade, p.estoqueMinimo)).length;
