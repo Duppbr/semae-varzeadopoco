@@ -18,14 +18,15 @@ const quantidade = (valor: number) => valor.toLocaleString('pt-BR', { maximumFra
 // recebimento sao internos e ficam so na tela do pedido, fora deste papel.
 function documentoDoPedido(pedido: Pedido, id: string): Documento {
   const fornecedor = pedido.fornecedor;
-  const campos: Documento['campos'] = [
-    ['Data do pedido', formatarData(pedido.data)],
-    ['Local de entrega', pedido.escola?.nome || 'SEMAE - Várzea do Poço/BA'],
-  ];
+  // So o que existe no pedido. Nao ha cadastro de local de entrega, entao o documento
+  // nao inventa um: a escola, quando informada, aparece como Destino (como nos demais).
+  const campos: Documento['campos'] = [['Data', formatarData(pedido.data)]];
+  if (pedido.responsavel?.nome) campos.push(['Responsável', pedido.responsavel.nome]);
+  if (pedido.escola?.nome) campos.push(['Destino', pedido.escola.nome]);
   if (pedido.observacao) campos.push(['Observação', pedido.observacao]);
   const itens = [...pedido.itens].sort((a, b) => nomeDoItem(a).localeCompare(nomeDoItem(b), 'pt-BR'));
   return {
-    titulo: `Pedido / Orçamento nº ${pedido.numero}`,
+    titulo: `Pedido de Compra nº ${pedido.numero}`,
     arquivo: `semae-pedido-${pedido.numero}.pdf`,
     voltar: `/pedido-compra/${id}`,
     // Dado em branco do fornecedor nao vira linha vazia nem traco no documento.

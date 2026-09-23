@@ -3,9 +3,10 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import AppShell from '@/components/AppShell';
-import { Plus, Trash2, ShoppingCart, Search } from 'lucide-react';
+import { Plus, Trash2, ShoppingCart, ChevronDown } from 'lucide-react';
 import { requisitar } from '@/lib/http-client';
 import { hoje } from '@/lib/regras';
+import SeletorProdutos from '@/components/SeletorProdutos';
 
 interface Escola { id: string; nome: string; tipo: string }
 interface Produto {
@@ -41,8 +42,7 @@ export default function NovoPedidoCompraPage() {
   const [responsavelId, setResponsavelId] = useState('');
   const [observacao, setObservacao] = useState('');
   const [itens, setItens] = useState<ItemForm[]>([]);
-  const [busca, setBusca] = useState('');
-  const [mostrarBusca, setMostrarBusca] = useState(false);
+  const [mostrarLivre, setMostrarLivre] = useState(false);
   const [salvando, setSalvando] = useState(false);
   const [erro, setErro] = useState('');
 
@@ -62,11 +62,6 @@ export default function NovoPedidoCompraPage() {
     }).catch(e => setErro(e.message));
   }, []);
 
-  const produtosFiltrados = produtos.filter(p =>
-    p.nome.toLowerCase().includes(busca.toLowerCase()) &&
-    !itens.find(i => i.produtoId === p.id)
-  );
-
   const adicionarProduto = (p: Produto) => {
     setItens(prev => [
       ...prev,
@@ -79,7 +74,6 @@ export default function NovoPedidoCompraPage() {
         quantidade: '',
       },
     ]);
-    setBusca('');
   };
 
   const removerItem = (idx: number) => setItens(prev => prev.filter((_, i) => i !== idx));
@@ -140,6 +134,7 @@ export default function NovoPedidoCompraPage() {
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-1.5">Fornecedor *</label>
             <select
+              aria-label="Fornecedor"
               value={fornecedorId}
               onChange={e => setFornecedorId(e.target.value)}
               className="w-full px-4 py-3 border border-slate-200 rounded-xl bg-slate-50 focus:outline-none focus:ring-2 focus:ring-purple-500 text-slate-900"
@@ -158,14 +153,14 @@ export default function NovoPedidoCompraPage() {
 
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-1.5">
-              Escola / Creche (opcional)
+              Destino (opcional)
             </label>
             <select
               value={escolaId}
               onChange={e => setEscolaId(e.target.value)}
               className="w-full px-4 py-3 border border-slate-200 rounded-xl bg-slate-50 focus:outline-none focus:ring-2 focus:ring-purple-500 text-slate-900"
             >
-              <option value="">Geral / SEMAE (sem escola específica)</option>
+              <option value="">Sem destino específico</option>
               {escolas.map(e => (
                 <option key={e.id} value={e.id}>
                   {e.nome} ({e.tipo})
@@ -212,77 +207,40 @@ export default function NovoPedidoCompraPage() {
           </div>
         </div>
 
-        {/* Produtos */}
+        {/* Escolha de produtos: o cadastro vem primeiro; item sem cadastro e excecao */}
         <div className="bg-white rounded-2xl border border-slate-200 p-4 shadow-sm">
-          <div className="flex items-center justify-between mb-3">
-            <h3 className="font-semibold text-slate-800">Produtos ({itens.length})</h3>
-            <button
-              onClick={() => setMostrarBusca(true)}
-              className="flex items-center gap-1.5 bg-purple-600 text-white text-sm font-semibold px-3 py-1.5 rounded-xl active:bg-purple-700"
-            >
-              <Plus size={15} /> Adicionar
-            </button>
-          </div>
+          <h3 className="font-semibold text-slate-800 mb-3">Adicionar produtos</h3>
+          <SeletorProdutos produtos={produtos} escolhidos={itens.map(i => i.produtoId).filter(Boolean)}
+            onEscolher={adicionarProduto} acento="purple"
+            detalhe={p => <>{p.categoria.nome} · Estoque:{' '}
+              <span className={`font-semibold ${(p.estoque?.quantidade ?? 0) <= 0 ? 'text-red-600' : 'text-slate-700'}`}>
+                {p.estoque?.quantidade?.toFixed(1) ?? '0'} {p.unidade.abreviacao}
+              </span></>} />
 
-          {mostrarBusca && (
-            <div className="mb-4">
-              <div className="relative">
-                <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-                <input
-                  type="text"
-                  value={busca}
-                  onChange={e => setBusca(e.target.value)}
-                  placeholder="Buscar produto..."
-                  autoFocus
-                  className="w-full pl-9 pr-4 py-3 border border-slate-200 rounded-xl bg-slate-50 focus:outline-none focus:ring-2 focus:ring-purple-500 text-slate-900"
-                />
-              </div>
-              <div className="mt-2 border border-slate-200 rounded-xl overflow-hidden max-h-64 overflow-y-auto">
-                {produtosFiltrados.length === 0 ? (
-                  <p className="p-3 text-sm text-slate-500 text-center">Nenhum produto encontrado</p>
-                ) : (
-                  produtosFiltrados.map(p => (
-                    <button
-                      key={p.id}
-                      onClick={() => adicionarProduto(p)}
-                      className="w-full text-left px-4 py-3 hover:bg-purple-50 active:bg-purple-100 border-b border-slate-100 last:border-0 flex items-center gap-3"
-                    >
-                      <div className="flex-1 min-w-0">
-                        <p className="font-medium text-slate-900 text-sm">{p.nome}</p>
-                        <p className="text-xs text-slate-500">
-                          {p.categoria.nome} · Estoque atual:{' '}
-                          <span className={`font-semibold ${(p.estoque?.quantidade ?? 0) <= 0 ? 'text-red-600' : 'text-slate-700'}`}>
-                            {p.estoque?.quantidade?.toFixed(1) ?? '0'} {p.unidade.abreviacao}
-                          </span>
-                        </p>
-                      </div>
-                      <span className="text-blue-500 font-bold text-lg shrink-0">+</span>
-                    </button>
-                  ))
-                )}
-              </div>
-              <button
-                onClick={() => { setMostrarBusca(false); setBusca(''); }}
-                className="mt-2 text-sm text-slate-500 underline"
-              >
-                Concluir seleção
-              </button>
-            </div>
-          )}
-
-          <fieldset className="border-t border-slate-200 py-4 my-3 space-y-2">
-            <legend className="text-sm font-semibold">Item sem cadastro</legend>
-            <input aria-label="Nome do item sem cadastro" placeholder="Nome do item" maxLength={200} value={nomeLivre} onChange={e => setNomeLivre(e.target.value)} className="w-full p-3 border border-slate-300 rounded-lg" />
-            <select aria-label="Unidade do item sem cadastro" value={unidadeLivre} onChange={e => setUnidadeLivre(e.target.value)} className="w-full p-3 border border-slate-300 rounded-lg">
+          <button type="button" onClick={() => setMostrarLivre(v => !v)} aria-expanded={mostrarLivre}
+            className="mt-3 flex items-center gap-1 text-sm text-slate-500 active:text-slate-700">
+            <ChevronDown size={16} className={`transition-transform ${mostrarLivre ? 'rotate-180' : ''}`} />
+            Não encontrou? Adicionar item sem cadastro
+          </button>
+          {mostrarLivre && <fieldset className="mt-2 p-3 rounded-xl bg-slate-50 border border-slate-200 space-y-2">
+            <legend className="sr-only">Item sem cadastro</legend>
+            <p className="text-xs text-slate-500">Use só para algo que ainda não existe no cadastro. Na hora de receber, ele precisa ser vinculado a um produto.</p>
+            <input aria-label="Nome do item sem cadastro" placeholder="Nome do item" maxLength={200} value={nomeLivre} onChange={e => setNomeLivre(e.target.value)} className="w-full p-3 border border-slate-300 rounded-xl bg-white" />
+            <select aria-label="Unidade do item sem cadastro" value={unidadeLivre} onChange={e => setUnidadeLivre(e.target.value)} className="w-full p-3 border border-slate-300 rounded-xl bg-white">
               <option value="">Unidade</option>{unidades.map(u => <option key={u.id} value={u.id}>{u.nome} ({u.abreviacao})</option>)}
             </select>
-            <button type="button" disabled={!nomeLivre.trim() || !unidadeLivre} className="flex gap-2 text-blue-700 disabled:opacity-40" onClick={() => {
+            <button type="button" disabled={!nomeLivre.trim() || !unidadeLivre} className="flex gap-2 items-center text-purple-700 font-medium disabled:opacity-40" onClick={() => {
               const u = unidades.find(u => u.id === unidadeLivre);
               if (!u || !nomeLivre.trim()) return;
               setItens(prev => [...prev, { produtoId: '', produtoNome: nomeLivre.trim(), unidadeId: u.id, unidadeAbrev: u.abreviacao, estoqueAtual: 0, quantidade: '' }]);
               setNomeLivre('');
             }}><Plus size={18} /> Adicionar item ao pedido</button>
-          </fieldset>
+          </fieldset>}
+        </div>
+
+        {/* Itens escolhidos */}
+        <div className="bg-white rounded-2xl border border-slate-200 p-4 shadow-sm">
+          <h3 className="font-semibold text-slate-800 mb-3">Itens do pedido ({itens.length})</h3>
           {itens.length === 0 ? (
             <div className="text-center py-6">
               <ShoppingCart size={28} className="mx-auto text-slate-300 mb-2" />
@@ -296,7 +254,7 @@ export default function NovoPedidoCompraPage() {
                     <div className="flex-1 min-w-0">
                       <p className="font-medium text-slate-900 text-sm truncate">{it.produtoNome}</p>
                       <p className="text-xs text-slate-500">
-                        Estoque atual: {it.estoqueAtual.toFixed(1)} {it.unidadeAbrev}
+                        {it.produtoId ? `Estoque atual: ${it.estoqueAtual.toFixed(1)} ${it.unidadeAbrev}` : 'Item sem cadastro'}
                       </p>
                     </div>
                     <button

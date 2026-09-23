@@ -5,7 +5,8 @@ import { useRouter } from 'next/navigation';
 import AppShell from '@/components/AppShell';
 import { requisitar } from '@/lib/http-client';
 import { hoje } from '@/lib/regras';
-import { Plus, Trash2, PackageMinus, Search } from 'lucide-react';
+import { Plus, Trash2, PackageMinus } from 'lucide-react';
+import SeletorProdutos from '@/components/SeletorProdutos';
 
 interface Escola { id: string; nome: string; tipo: string }
 interface Produto { id: string; nome: string; unidade: { id: string; abreviacao: string }; categoria: { nome: string }; estoque: { quantidade: number } | null }
@@ -23,7 +24,6 @@ export default function NovaSaidaPage() {
   const [recebedor, setRecebedor] = useState('');
   const [observacao, setObservacao] = useState('');
   const [itens, setItens] = useState<ItemForm[]>([]);
-  const [busca, setBusca] = useState('');
   const [mostrarBusca, setMostrarBusca] = useState(false);
   const [salvando, setSalvando] = useState(false);
   const [erro, setErro] = useState('');
@@ -36,9 +36,6 @@ export default function NovaSaidaPage() {
     ]).then(([esc, prod, resp]) => { setEscolas(esc); setProdutos(prod); setResponsaveis(resp); }).catch(e => setErro(e.message));
   }, []);
 
-  const produtosFiltrados = produtos.filter(p =>
-    p.nome.toLowerCase().includes(busca.toLowerCase()) && !itens.find(i => i.produtoId === p.id)
-  );
 
   const adicionarProduto = (p: Produto) => {
     setItens(prev => [...prev, {
@@ -46,7 +43,6 @@ export default function NovaSaidaPage() {
       unidadeId: p.unidade.id, unidadeAbrev: p.unidade.abreviacao,
       estoqueAtual: p.estoque?.quantidade ?? 0, quantidade: '',
     }]);
-    setBusca('');
   };
 
   const removerItem = (idx: number) => setItens(prev => prev.filter((_, i) => i !== idx));
@@ -128,27 +124,9 @@ export default function NovaSaidaPage() {
 
           {mostrarBusca && (
             <div className="mb-4">
-              <div className="relative">
-                <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-                <input type="text" value={busca} onChange={e => setBusca(e.target.value)}
-                  placeholder="Buscar produto..." autoFocus
-                  className="w-full pl-9 pr-4 py-3 border border-slate-200 rounded-xl bg-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-500 text-slate-900" />
-              </div>
-              <div className="mt-2 border border-slate-200 rounded-xl overflow-hidden max-h-64 overflow-y-auto">
-                {produtosFiltrados.length === 0 ? (
-                  <p className="p-3 text-sm text-slate-500 text-center">Nenhum produto encontrado</p>
-                ) : produtosFiltrados.map(p => (
-                  <button key={p.id} onClick={() => adicionarProduto(p)}
-                    className="w-full text-left px-4 py-3 hover:bg-orange-50 active:bg-orange-100 border-b border-slate-100 last:border-0 flex items-center gap-3">
-                    <div className="flex-1 min-w-0">
-                      <p className="font-medium text-slate-900 text-sm">{p.nome}</p>
-                      <p className="text-xs text-slate-500">{p.categoria.nome} · Estoque: {p.estoque?.quantidade?.toFixed(1) ?? 0} {p.unidade.abreviacao}</p>
-                    </div>
-                    <span className="text-orange-500 font-bold text-lg shrink-0">+</span>
-                  </button>
-                ))}
-              </div>
-              <button onClick={() => { setMostrarBusca(false); setBusca(''); }} className="mt-2 text-sm text-slate-500 underline">Concluir seleção</button>
+              <SeletorProdutos produtos={produtos} escolhidos={itens.map(i => i.produtoId)} onEscolher={adicionarProduto} acento="orange" autoFocus
+                detalhe={p => `${p.categoria.nome} · Estoque: ${p.estoque?.quantidade?.toFixed(1) ?? 0} ${p.unidade.abreviacao}`} />
+              <button onClick={() => setMostrarBusca(false)} className="mt-2 text-sm text-slate-500 underline">Concluir seleção</button>
             </div>
           )}
 

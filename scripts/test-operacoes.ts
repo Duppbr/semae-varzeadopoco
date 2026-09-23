@@ -198,14 +198,22 @@ async function main() {
       }
       ok('listas de entradas e descartes abrem os detalhes');
       await page.goto(`${url}/pedido-compra/novo`);
+      await page.getByLabel('Fornecedor', { exact: true }).selectOption({ label: 'Distribuidora ficticia de teste' });
+      // Produto cadastrado e o caminho principal: busca sem acento encontra e adiciona.
+      await page.getByLabel('Buscar produto').fill('ARROZ');
+      await page.getByRole('button', { name: /Arroz de teste/ }).click();
+      // Item sem cadastro fica recolhido; so aparece quando pedido.
+      await expect(page.getByLabel('Nome do item sem cadastro')).toHaveCount(0);
+      await page.getByRole('button', { name: /Adicionar item sem cadastro/ }).click();
       await page.getByLabel('Nome do item sem cadastro').fill('Produto livre de teste');
       await page.getByLabel('Unidade do item sem cadastro').selectOption(u.id);
       await page.getByRole('button', { name: 'Adicionar item ao pedido' }).click();
-      await page.getByPlaceholder('Quantidade', { exact: true }).fill('7');
+      for (const campo of await page.getByPlaceholder('Quantidade', { exact: true }).all()) await campo.fill('7');
       await page.getByRole('button', { name: 'Registrar pedido' }).click();
       await expect(page.getByText('Produto livre de teste', { exact: true })).toBeVisible();
+      await expect(page.getByText('Arroz de teste', { exact: true })).toBeVisible();
       await expect(page.getByText('Pedido pendente', { exact: true })).toBeVisible();
-      ok('formulario cria pedido com produto sem cadastro');
+      ok('formulario cria pedido com produto cadastrado (busca) e item sem cadastro');
       const estoqueHttp = await (await context.request.get(`${url}/api/estoque`)).json();
       const dashboard = await (await context.request.get(`${url}/api/dashboard`)).json();
       const esperado = estoqueHttp.filter((p: { estoque: { quantidade: number }; estoqueMinimo: number }) => estoqueBaixo(p.estoque.quantidade, p.estoqueMinimo)).length;
