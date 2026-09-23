@@ -199,10 +199,15 @@ async function main() {
       ok('listas de entradas e descartes abrem os detalhes');
       await page.goto(`${url}/pedido-compra/novo`);
       await page.getByLabel('Fornecedor', { exact: true }).selectOption({ label: 'Distribuidora ficticia de teste' });
-      // Produto cadastrado e o caminho principal: busca sem acento encontra e adiciona.
+      // Produto cadastrado e o caminho principal: "Adicionar" abre o painel,
+      // a busca ignora maiusculas e cada escolha fecha o painel.
+      const adicionar = page.getByRole('button', { name: 'Adicionar', exact: true });
+      await adicionar.click();
       await page.getByLabel('Buscar produto').fill('ARROZ');
       await page.getByRole('button', { name: /Arroz de teste/ }).click();
-      // Item sem cadastro fica recolhido; so aparece quando pedido.
+      await expect(page.getByLabel('Buscar produto')).toHaveCount(0);
+      // Item sem cadastro fica escondido dentro do painel ate ser pedido.
+      await adicionar.click();
       await expect(page.getByLabel('Nome do item sem cadastro')).toHaveCount(0);
       await page.getByRole('button', { name: /Adicionar item sem cadastro/ }).click();
       await page.getByLabel('Nome do item sem cadastro').fill('Produto livre de teste');

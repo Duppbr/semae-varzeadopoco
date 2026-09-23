@@ -5,8 +5,8 @@ import { useRouter } from 'next/navigation';
 import AppShell from '@/components/AppShell';
 import { requisitar } from '@/lib/http-client';
 import { hoje } from '@/lib/regras';
-import { Plus, Trash2, PackageMinus } from 'lucide-react';
-import SeletorProdutos from '@/components/SeletorProdutos';
+import { Trash2, PackageMinus } from 'lucide-react';
+import AdicionarProduto from '@/components/AdicionarProduto';
 
 interface Escola { id: string; nome: string; tipo: string }
 interface Produto { id: string; nome: string; unidade: { id: string; abreviacao: string }; categoria: { nome: string }; estoque: { quantidade: number } | null }
@@ -24,7 +24,6 @@ export default function NovaSaidaPage() {
   const [recebedor, setRecebedor] = useState('');
   const [observacao, setObservacao] = useState('');
   const [itens, setItens] = useState<ItemForm[]>([]);
-  const [mostrarBusca, setMostrarBusca] = useState(false);
   const [salvando, setSalvando] = useState(false);
   const [erro, setErro] = useState('');
 
@@ -116,19 +115,8 @@ export default function NovaSaidaPage() {
         <div className="bg-white rounded-2xl border border-slate-200 p-4 shadow-sm">
           <div className="flex items-center justify-between mb-3">
             <h3 className="font-semibold text-slate-800">Produtos ({itens.length})</h3>
-            <button onClick={() => setMostrarBusca(true)}
-              className="flex items-center gap-1.5 bg-orange-500 text-white text-sm font-semibold px-3 py-1.5 rounded-xl active:bg-orange-600">
-              <Plus size={15} /> Adicionar
-            </button>
+            <AdicionarProduto produtos={produtos} escolhidos={itens.map(i => i.produtoId)} onEscolher={adicionarProduto} acento="orange" detalhe={p => `${p.categoria.nome} · Estoque: ${p.estoque?.quantidade?.toFixed(1) ?? 0} ${p.unidade.abreviacao}`} />
           </div>
-
-          {mostrarBusca && (
-            <div className="mb-4">
-              <SeletorProdutos produtos={produtos} escolhidos={itens.map(i => i.produtoId)} onEscolher={adicionarProduto} acento="orange" autoFocus
-                detalhe={p => `${p.categoria.nome} · Estoque: ${p.estoque?.quantidade?.toFixed(1) ?? 0} ${p.unidade.abreviacao}`} />
-              <button onClick={() => setMostrarBusca(false)} className="mt-2 text-sm text-slate-500 underline">Concluir seleção</button>
-            </div>
-          )}
 
           {itens.length === 0 ? (
             <div className="text-center py-6">

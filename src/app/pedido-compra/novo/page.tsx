@@ -3,10 +3,10 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import AppShell from '@/components/AppShell';
-import { Plus, Trash2, ShoppingCart, ChevronDown } from 'lucide-react';
+import { Plus, Trash2, ShoppingCart } from 'lucide-react';
 import { requisitar } from '@/lib/http-client';
 import { hoje } from '@/lib/regras';
-import SeletorProdutos from '@/components/SeletorProdutos';
+import AdicionarProduto from '@/components/AdicionarProduto';
 
 interface Escola { id: string; nome: string; tipo: string }
 interface Produto {
@@ -27,6 +27,32 @@ interface ItemForm {
   quantidade: string;
 }
 
+interface Unidade { id: string; nome: string; abreviacao: string }
+
+// Excecao, nao o caminho normal: fica escondido dentro do painel "Adicionar"
+// e so abre o formulario quando alguem pede.
+function ItemSemCadastro({ unidades, onAdicionar }: { unidades: Unidade[]; onAdicionar: (nome: string, unidade: Unidade) => void }) {
+  const [aberto, setAberto] = useState(false);
+  const [nome, setNome] = useState('');
+  const [unidadeId, setUnidadeId] = useState('');
+  if (!aberto) return <button type="button" onClick={() => setAberto(true)}
+    className="mt-3 w-full text-center text-xs text-slate-500 underline active:text-slate-700">Não encontrou? Adicionar item sem cadastro</button>;
+  const unidade = unidades.find(u => u.id === unidadeId);
+  return <fieldset className="mt-3 pt-3 border-t border-slate-100 space-y-2">
+    <legend className="sr-only">Item sem cadastro</legend>
+    <p className="text-xs text-slate-500">Só para o que ainda não existe no cadastro. Na hora de receber, ele precisa ser vinculado a um produto.</p>
+    <input aria-label="Nome do item sem cadastro" placeholder="Nome do item" maxLength={200} autoFocus value={nome} onChange={e => setNome(e.target.value)}
+      className="w-full p-3 border border-slate-300 rounded-xl" />
+    <select aria-label="Unidade do item sem cadastro" value={unidadeId} onChange={e => setUnidadeId(e.target.value)} className="w-full p-3 border border-slate-300 rounded-xl bg-white">
+      <option value="">Unidade</option>{unidades.map(u => <option key={u.id} value={u.id}>{u.nome} ({u.abreviacao})</option>)}
+    </select>
+    <button type="button" disabled={!nome.trim() || !unidade} onClick={() => unidade && onAdicionar(nome.trim(), unidade)}
+      className="w-full flex justify-center gap-2 items-center bg-purple-600 text-white font-semibold py-2.5 rounded-xl disabled:opacity-40 active:bg-purple-700">
+      <Plus size={18} /> Adicionar item ao pedido
+    </button>
+  </fieldset>;
+}
+
 export default function NovoPedidoCompraPage() {
   const router = useRouter();
   const [escolas, setEscolas] = useState<Escola[]>([]);
@@ -34,15 +60,12 @@ export default function NovoPedidoCompraPage() {
   const [responsaveis, setResponsaveis] = useState<Responsavel[]>([]);
   const [fornecedores, setFornecedores] = useState<Fornecedor[]>([]);
   const [data, setData] = useState(hoje);
-  const [unidades, setUnidades] = useState<{ id: string; nome: string; abreviacao: string }[]>([]);
-  const [nomeLivre, setNomeLivre] = useState('');
-  const [unidadeLivre, setUnidadeLivre] = useState('');
+  const [unidades, setUnidades] = useState<Unidade[]>([]);
   const [escolaId, setEscolaId] = useState('');
   const [fornecedorId, setFornecedorId] = useState('');
   const [responsavelId, setResponsavelId] = useState('');
   const [observacao, setObservacao] = useState('');
   const [itens, setItens] = useState<ItemForm[]>([]);
-  const [mostrarLivre, setMostrarLivre] = useState(false);
   const [salvando, setSalvando] = useState(false);
   const [erro, setErro] = useState('');
 
@@ -207,40 +230,21 @@ export default function NovoPedidoCompraPage() {
           </div>
         </div>
 
-        {/* Escolha de produtos: o cadastro vem primeiro; item sem cadastro e excecao */}
+        {/* Produtos: o cadastro e o caminho normal; item sem cadastro fica escondido no painel */}
         <div className="bg-white rounded-2xl border border-slate-200 p-4 shadow-sm">
-          <h3 className="font-semibold text-slate-800 mb-3">Adicionar produtos</h3>
-          <SeletorProdutos produtos={produtos} escolhidos={itens.map(i => i.produtoId).filter(Boolean)}
-            onEscolher={adicionarProduto} acento="purple"
-            detalhe={p => <>{p.categoria.nome} · Estoque:{' '}
-              <span className={`font-semibold ${(p.estoque?.quantidade ?? 0) <= 0 ? 'text-red-600' : 'text-slate-700'}`}>
-                {p.estoque?.quantidade?.toFixed(1) ?? '0'} {p.unidade.abreviacao}
-              </span></>} />
-
-          <button type="button" onClick={() => setMostrarLivre(v => !v)} aria-expanded={mostrarLivre}
-            className="mt-3 flex items-center gap-1 text-sm text-slate-500 active:text-slate-700">
-            <ChevronDown size={16} className={`transition-transform ${mostrarLivre ? 'rotate-180' : ''}`} />
-            Não encontrou? Adicionar item sem cadastro
-          </button>
-          {mostrarLivre && <fieldset className="mt-2 p-3 rounded-xl bg-slate-50 border border-slate-200 space-y-2">
-            <legend className="sr-only">Item sem cadastro</legend>
-            <p className="text-xs text-slate-500">Use só para algo que ainda não existe no cadastro. Na hora de receber, ele precisa ser vinculado a um produto.</p>
-            <input aria-label="Nome do item sem cadastro" placeholder="Nome do item" maxLength={200} value={nomeLivre} onChange={e => setNomeLivre(e.target.value)} className="w-full p-3 border border-slate-300 rounded-xl bg-white" />
-            <select aria-label="Unidade do item sem cadastro" value={unidadeLivre} onChange={e => setUnidadeLivre(e.target.value)} className="w-full p-3 border border-slate-300 rounded-xl bg-white">
-              <option value="">Unidade</option>{unidades.map(u => <option key={u.id} value={u.id}>{u.nome} ({u.abreviacao})</option>)}
-            </select>
-            <button type="button" disabled={!nomeLivre.trim() || !unidadeLivre} className="flex gap-2 items-center text-purple-700 font-medium disabled:opacity-40" onClick={() => {
-              const u = unidades.find(u => u.id === unidadeLivre);
-              if (!u || !nomeLivre.trim()) return;
-              setItens(prev => [...prev, { produtoId: '', produtoNome: nomeLivre.trim(), unidadeId: u.id, unidadeAbrev: u.abreviacao, estoqueAtual: 0, quantidade: '' }]);
-              setNomeLivre('');
-            }}><Plus size={18} /> Adicionar item ao pedido</button>
-          </fieldset>}
-        </div>
-
-        {/* Itens escolhidos */}
-        <div className="bg-white rounded-2xl border border-slate-200 p-4 shadow-sm">
-          <h3 className="font-semibold text-slate-800 mb-3">Itens do pedido ({itens.length})</h3>
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="font-semibold text-slate-800">Produtos ({itens.length})</h3>
+            <AdicionarProduto produtos={produtos} escolhidos={itens.map(i => i.produtoId).filter(Boolean)}
+              onEscolher={adicionarProduto} acento="purple"
+              detalhe={p => <>{p.categoria.nome} · Estoque:{' '}
+                <span className={`font-semibold ${(p.estoque?.quantidade ?? 0) <= 0 ? 'text-red-600' : 'text-slate-700'}`}>
+                  {p.estoque?.quantidade?.toFixed(1) ?? '0'} {p.unidade.abreviacao}
+                </span></>}
+              rodape={fechar => <ItemSemCadastro unidades={unidades} onAdicionar={(nome, u) => {
+                setItens(prev => [...prev, { produtoId: '', produtoNome: nome, unidadeId: u.id, unidadeAbrev: u.abreviacao, estoqueAtual: 0, quantidade: '' }]);
+                fechar();
+              }} />} />
+          </div>
           {itens.length === 0 ? (
             <div className="text-center py-6">
               <ShoppingCart size={28} className="mx-auto text-slate-300 mb-2" />
