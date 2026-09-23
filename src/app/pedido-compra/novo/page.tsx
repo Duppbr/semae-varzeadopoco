@@ -99,6 +99,7 @@ export default function NovoPedidoCompraPage() {
     ]);
   };
 
+  const removerProduto = (p: Produto) => setItens(prev => prev.filter(i => i.produtoId !== p.id));
   const removerItem = (idx: number) => setItens(prev => prev.filter((_, i) => i !== idx));
   const atualizarQtd = (idx: number, v: string) =>
     setItens(prev => prev.map((it, i) => (i === idx ? { ...it, quantidade: v } : it)));
@@ -235,7 +236,7 @@ export default function NovoPedidoCompraPage() {
           <div className="flex items-center justify-between mb-3">
             <h3 className="font-semibold text-slate-800">Produtos ({itens.length})</h3>
             <AdicionarProduto produtos={produtos} escolhidos={itens.map(i => i.produtoId).filter(Boolean)}
-              onEscolher={adicionarProduto} acento="purple"
+              onEscolher={adicionarProduto} onRemover={removerProduto} acento="purple"
               detalhe={p => <>{p.categoria.nome} · Estoque:{' '}
                 <span className={`font-semibold ${(p.estoque?.quantidade ?? 0) <= 0 ? 'text-red-600' : 'text-slate-700'}`}>
                   {p.estoque?.quantidade?.toFixed(1) ?? '0'} {p.unidade.abreviacao}

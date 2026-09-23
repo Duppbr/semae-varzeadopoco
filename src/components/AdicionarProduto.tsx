@@ -12,12 +12,14 @@ const BOTAO = {
 } as const;
 
 // Botao "Adicionar" com o seletor num painel ancorado logo abaixo dele.
-// Cada escolha fecha o painel; clicar fora ou Esc tambem fecha.
+// O painel fica aberto para escolher varios; cada escolhido aparece marcado
+// e um toque desmarca. Fecha por "Concluir", clique fora ou Esc.
 // `rodape` recebe `fechar` para acoes extras (ex.: item sem cadastro no pedido).
-export default function AdicionarProduto<T extends ProdutoSeletor>({ produtos, escolhidos, onEscolher, detalhe, acento = 'blue', rodape }: {
+export default function AdicionarProduto<T extends ProdutoSeletor>({ produtos, escolhidos, onEscolher, onRemover, detalhe, acento = 'blue', rodape }: {
   produtos: T[];
   escolhidos: string[];
   onEscolher: (produto: T) => void;
+  onRemover: (produto: T) => void;
   detalhe?: (produto: T) => ReactNode;
   acento?: keyof typeof BOTAO;
   rodape?: (fechar: () => void) => ReactNode;
@@ -49,8 +51,15 @@ export default function AdicionarProduto<T extends ProdutoSeletor>({ produtos, e
       <div ref={painel} role="dialog" aria-label="Adicionar produto"
         className="pointer-events-auto scroll-mt-20 scroll-mb-28 w-[min(28rem,calc(100vw_-_4rem))] bg-white border border-slate-200 rounded-2xl shadow-xl p-3">
         <SeletorProdutos produtos={produtos} escolhidos={escolhidos} detalhe={detalhe} acento={acento} autoFocus
-          onEscolher={p => { onEscolher(p); fechar(); }} />
+          onEscolher={onEscolher} onRemover={onRemover} />
         {rodape?.(fechar)}
+        <div className="mt-3 pt-3 border-t border-slate-100 flex items-center justify-between gap-3">
+          <span className="text-sm text-slate-600" aria-live="polite">
+            {escolhidos.length === 0 ? 'Nenhum selecionado' : `${escolhidos.length} selecionado${escolhidos.length > 1 ? 's' : ''}`}
+          </span>
+          <button type="button" onClick={fechar}
+            className={`text-white text-sm font-semibold px-4 py-2 rounded-xl ${BOTAO[acento]}`}>Concluir</button>
+        </div>
       </div>
     </div>}
   </div>;

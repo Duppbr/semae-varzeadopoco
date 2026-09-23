@@ -37,6 +37,7 @@ export default function NovaEntradaPage() {
     setItens(prev => [...prev, { produtoId: p.id, produtoNome: p.nome, unidadeId: p.unidade.id, unidadeAbrev: p.unidade.abreviacao, quantidade: '' }]);
   };
 
+  const removerProduto = (p: Produto) => setItens(prev => prev.filter(i => i.produtoId !== p.id));
   const removerItem = (idx: number) => setItens(prev => prev.filter((_, i) => i !== idx));
   const atualizarQtd = (idx: number, v: string) => setItens(prev => prev.map((it, i) => i === idx ? { ...it, quantidade: v } : it));
 
@@ -106,7 +107,7 @@ export default function NovaEntradaPage() {
         <div className="bg-white rounded-2xl border border-slate-200 p-4 shadow-sm">
           <div className="flex items-center justify-between mb-3">
             <h3 className="font-semibold text-slate-800">Produtos ({itens.length})</h3>
-            <AdicionarProduto produtos={produtos} escolhidos={itens.map(i => i.produtoId)} onEscolher={adicionarProduto} acento="blue" />
+            <AdicionarProduto produtos={produtos} escolhidos={itens.map(i => i.produtoId)} onEscolher={adicionarProduto} onRemover={removerProduto} acento="blue" />
           </div>
 
           {/* Lista de itens */}

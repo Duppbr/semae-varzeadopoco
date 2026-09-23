@@ -199,12 +199,21 @@ async function main() {
       ok('listas de entradas e descartes abrem os detalhes');
       await page.goto(`${url}/pedido-compra/novo`);
       await page.getByLabel('Fornecedor', { exact: true }).selectOption({ label: 'Distribuidora ficticia de teste' });
-      // Produto cadastrado e o caminho principal: "Adicionar" abre o painel,
-      // a busca ignora maiusculas e cada escolha fecha o painel.
+      // Produto cadastrado e o caminho principal: "Adicionar" abre o painel e a
+      // busca ignora maiusculas. O painel fica aberto; o escolhido aparece marcado
+      // e um toque errado se desfaz tocando de novo. "Concluir" fecha.
       const adicionar = page.getByRole('button', { name: 'Adicionar', exact: true });
       await adicionar.click();
       await page.getByLabel('Buscar produto').fill('ARROZ');
-      await page.getByRole('button', { name: /Arroz de teste/ }).click();
+      const arroz = page.getByRole('button', { name: /Arroz de teste/ });
+      await arroz.click();
+      await expect(arroz).toHaveAttribute('aria-pressed', 'true');
+      await expect(page.getByText('1 selecionado', { exact: true })).toBeVisible();
+      await arroz.click();
+      await expect(arroz).toHaveAttribute('aria-pressed', 'false');
+      await expect(page.getByText('Nenhum selecionado', { exact: true })).toBeVisible();
+      await arroz.click();
+      await page.getByRole('button', { name: 'Concluir', exact: true }).click();
       await expect(page.getByLabel('Buscar produto')).toHaveCount(0);
       // Item sem cadastro fica escondido dentro do painel ate ser pedido.
       await adicionar.click();
